@@ -19,22 +19,24 @@ def run_web():
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
 
-# ব্যাকগ্রাউন্ডে ডামি ওয়েবসাইট সার্ভার চালু করা
 threading.Thread(target=run_web, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের তথ্য (আপনার টোকেন ও এপিআই কি বসান)
+# ২. বটের তথ্য (টোকেন ও এপিআই কি বসান)
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e"
 
+# এখানে আপনার টেলিগ্রাম ইউজার আইডি বসাতে পারেন (ঐচ্ছিক)
+# যাতে কেবল আপনি গোপনে /balance লিখে ব্যালেন্স চেক করতে পারেন
+ADMIN_ID = None  # উদাহরণ: 123456789
+
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# প্রতিটি ইউজারের সেভ করা রেঞ্জ রাখার ডিকশনারি
 user_ranges = {}
 
 print("---------------------------------")
-print("✅ HotOtp Bot Successfully Started on Render!")
+print("✅ ব্যালেন্স বাটন মুক্ত HotOtp বট চালু!")
 print("---------------------------------")
 
 # ওটিপি ফিল্টার করার ফাংশন
@@ -88,7 +90,7 @@ def auto_check_otp(chat_id, num_id, number):
             )
             return
 
-# ডাইনামিক মেনু তৈরি
+# ডাইনামিক মেনু তৈরি (ব্যালেন্স বাটন রিমুভ করা হয়েছে)
 def main_menu(chat_id):
     markup = types.InlineKeyboardMarkup(row_width=1)
     
@@ -101,12 +103,11 @@ def main_menu(chat_id):
         btn_range = types.InlineKeyboardButton("⚙️ প্রথমে রেঞ্জ সেট করুন", callback_data="ask_range")
         markup.add(btn_range)
         
-    btn_balance = types.InlineKeyboardButton("💰 ব্যালেন্স দেখুন", callback_data="balance")
     btn_reset = types.InlineKeyboardButton("🔄 সবকিছু রিসেট করুন", callback_data="reset_all")
-    markup.add(btn_balance, btn_reset)
+    markup.add(btn_reset)
     return markup
 
-# /start দিলে সবকিছু রিসেট হয়ে আবার প্রথম থেকে শুরু হবে
+# /start কমান্ড
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     chat_id = message.chat.id
@@ -120,6 +121,21 @@ def send_welcome(message):
         parse_mode="Markdown"
     )
 
+# শুধুমাত্র এডমিন গোপনে /balance লিখলে ব্যালেন্স দেখতে পাবে
+@bot.message_handler(commands=['balance'])
+def check_balance_secret(message):
+    chat_id = message.chat.id
+    if ADMIN_ID and chat_id != ADMIN_ID:
+        return # সাধারণ ইউজারের জন্য কোনো রেসপন্স দেবে না
+        
+    url = "https://nexaotpservice.com/api/v1/balance"
+    try:
+        res = requests.get(url, headers={"X-API-Key": NEXA_API_KEY}, timeout=10).json()
+        bal = res.get('balance', 'N/A')
+        bot.send_message(chat_id, f"💳 (গোপন ব্যালেন্স): {bal} টাকা")
+    except Exception:
+        bot.send_message(chat_id, "ব্যালেন্স চেক করতে সমস্যা হয়েছে।")
+
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     chat_id = call.message.chat.id
@@ -128,20 +144,8 @@ def callback_inline(call):
     except Exception:
         pass
 
-    headers = {"X-API-Key": NEXA_API_KEY, "Content-Type": "application/json"}
-
-    # ব্যালেন্স বাটন
-    if call.data == "balance":
-        url = "https://nexaotpservice.com/api/v1/balance"
-        try:
-            res = requests.get(url, headers={"X-API-Key": NEXA_API_KEY}, timeout=10).json()
-            bal = res.get('balance', 'N/A')
-            bot.send_message(chat_id, f"💳 আপনার অ্যাকাউন্টের ব্যালেন্স: {bal} টাকা")
-        except Exception as e:
-            bot.send_message(chat_id, f"❌ ব্যালেন্স চেক এরর: {e}")
-
     # রিসেট বাটন
-    elif call.data == "reset_all":
+    if call.data == "reset_all":
         user_ranges.pop(chat_id, None)
         bot.clear_step_handler_by_chat_id(chat_id)
         bot.answer_callback_query(call.id, text="সবকিছু রিসেট করা হয়েছে!", show_alert=True)
@@ -152,7 +156,7 @@ def callback_inline(call):
             parse_mode="Markdown"
         )
 
-    # রেঞ্জ টাইপ করার অপশন
+    # রেঞ্জ চাওয়ার বাটন
     elif call.data == "ask_range":
         msg = bot.send_message(
             chat_id, 
@@ -182,7 +186,7 @@ def callback_inline(call):
         else:
             bot.answer_callback_query(call.id, text="এখনো আসল ওটিপি আসেনি! কয়েক সেকেন্ড পর আবার চাপুন...", show_alert=True)
 
-# নতুন রেঞ্জ সেভ করার ফাংশন
+# রেঞ্জ সেভ করার ফাংশন
 def process_save_range(message):
     chat_id = message.chat.id
     new_range = message.text.strip()
@@ -243,9 +247,6 @@ def fetch_and_send_number(chat_id, user_range):
     except Exception as e:
         bot.send_message(chat_id, f"❌ আসল সমস্যা (Error): {e}")
 
-# ----------------------------------------------------
-# ৩. পোলিং চালু রাখা
-# ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
 except Exception as e:
