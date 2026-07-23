@@ -25,7 +25,7 @@ threading.Thread(target=run_web, daemon=True).start()
 # ----------------------------------------------------
 # ২. বটের তথ্য (আপনার টোকেন ও এপিআই কি বসান)
 # ----------------------------------------------------
-BOT_TOKEN = "8810955739:AAF3rTAB8au8rJ8VwomgBfs_VWpTzIdrmBk"
+BOT_TOKEN = "8810955739:AAGigzasZpf8n2Jtne5ltubFthF1L3KItJg"
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e"
 
 bot = telebot.TeleBot(BOT_TOKEN)
