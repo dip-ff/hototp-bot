@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Bot & Live Console Running!", 200
+    return "HotOtp Bot & Separate Range Poster Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -22,22 +22,24 @@ def run_web():
 threading.Thread(target=run_web, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও অটো-পোস্ট কনফিগারেশন
+# ২. বটের মূল তথ্য ও ২ টি আলাদা গ্রুপের কনফিগারেশন
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার টেলিগ্রাম বট টোকেন দিন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার এপিআই কি
-CHANNEL_ID = "@hototpotp"              # আপনার লাইভ ওটিপি চ্যানেল
+
+OTP_GROUP = "@hototpotp"                 # ওটিপি আপডেট গ্রুপ
+RANGE_GROUP = "@hototprange"  # লাইভ রেঞ্জের আলাদা গ্রুপ (এখানে রেঞ্জ গ্রুপের ইউজারনেম বসান)
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_ranges = {}
 posted_sms_ids = set()
 
 print("---------------------------------")
-print("✅ HotOtp Live Console & Auto-Poster Running!")
+print("✅ Separate Range Group Auto-Poster Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. চ্যানেল/গ্রুপে অটোমেটিক লাইভ ওটিপি পোস্ট
+# ৩. আলাদা "লাইভ রেঞ্জ গ্রুপে" অটো পোস্ট করার সিস্টেম
 # ----------------------------------------------------
 def auto_post_live_ranges():
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -70,11 +72,11 @@ def auto_post_live_ranges():
                             posted_sms_ids.clear()
 
                         post_text = (
-                            f"🔥 **HOT OTP LIVE HIT** 🔥\n\n"
-                            f"🌐 **Country:** {country}\n"
+                            f"🔥 **HOT LIVE RANGE HIT** 🔥\n\n"
                             f"📱 **Active Range:** `{range_str}`\n"
+                            f"🌐 **Country:** {country}\n"
                             f"🎯 **Service:** {service}\n"
-                            f"📩 **Status:** Success OTP Received! ⭐\n\n"
+                            f"📩 **Status:** OTP Received Successfully! ⭐\n\n"
                             f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিন:**"
                         )
 
@@ -82,7 +84,9 @@ def auto_post_live_ranges():
                         btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot")
                         markup.add(btn_bot)
 
-                        bot.send_message(CHANNEL_ID, post_text, reply_markup=markup, parse_mode="Markdown")
+                        # পোস্টগুলো সরাসরি আলাদা "লাইভ রেঞ্জ গ্রুপে" চলে যাবে
+                        if RANGE_GROUP and RANGE_GROUP != "@your_live_range_group":
+                            bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
                         time.sleep(3)
         except Exception:
             pass
@@ -148,10 +152,16 @@ def main_menu(chat_id):
         markup.add(btn_range)
         
     btn_live = types.InlineKeyboardButton("📊 লাইভ রেঞ্জ দেখুন (Console)", callback_data="view_live_console")
-    btn_group = types.InlineKeyboardButton("📢 ওটিপি লাইভ গ্রুপে যান", url="https://t.me/hototpotp")
+    
+    # আলাদা ২টি গ্রুপের বাটন
+    range_link = f"https://t.me/{RANGE_GROUP.replace('@', '')}"
+    otp_link = f"https://t.me/{OTP_GROUP.replace('@', '')}"
+    
+    btn_range_group = types.InlineKeyboardButton("📱 লাইভ রেঞ্জ গ্রুপ", url=range_link)
+    btn_otp_group = types.InlineKeyboardButton("📩 ওটিপি আপডেট গ্রুপ", url=otp_link)
     btn_reset = types.InlineKeyboardButton("🔄 সবকিছু রিসেট করুন", callback_data="reset_all")
     
-    markup.add(btn_live, btn_group, btn_reset)
+    markup.add(btn_live, btn_range_group, btn_otp_group, btn_reset)
     return markup
 
 @bot.message_handler(commands=['start'])
@@ -183,7 +193,6 @@ def callback_inline(call):
             msg = bot.send_message(chat_id, "আপনার কোনো রেঞ্জ সেট করা নেই। রেঞ্জ টাইপ করুন:")
             bot.register_next_step_handler(msg, process_save_range)
 
-    # লাইভ কনসোল ডাটা এনে মেসেজে দেখানো
     elif call.data == "view_live_console":
         bot.send_message(chat_id, "⏳ NexaOTP Console থেকে রিসেন্ট ওটিপি রিসিভ হওয়া রেঞ্জগুলো আনা হচ্ছে...")
         headers = {"X-API-Key": NEXA_API_KEY}
@@ -220,7 +229,7 @@ def callback_inline(call):
                 markup = types.InlineKeyboardMarkup()
                 markup.add(
                     types.InlineKeyboardButton("📱 রেঞ্জ সেট করুন", callback_data="ask_range"),
-                    types.InlineKeyboardButton("📢 ওটিপি লাইভ গ্রুপে যান", url="https://t.me/hototpotp")
+                    types.InlineKeyboardButton("📱 লাইভ রেঞ্জ গ্রুপে যান", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
                 )
                 bot.send_message(chat_id, report_text, reply_markup=markup, parse_mode="Markdown")
             else:
@@ -255,7 +264,7 @@ def fetch_and_send_number(chat_id, user_range):
             
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
-                types.InlineKeyboardButton("📢 ওটিপি লাইভ গ্রুপে যান", url="https://t.me/hototpotp"),
+                types.InlineKeyboardButton("📱 লাইভ রেঞ্জ গ্রুপে যান", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}"),
                 types.InlineKeyboardButton("📱 একই রেঞ্জ থেকে আরেকটি নাম্বার নিন", callback_data="get_num_auto"),
                 types.InlineKeyboardButton("⚙️ রেঞ্জ চেঞ্জ করুন", callback_data="ask_range"),
                 types.InlineKeyboardButton("🔄 সবকিছু রিসেট করুন", callback_data="reset_all")
@@ -267,9 +276,6 @@ def fetch_and_send_number(chat_id, user_range):
     except Exception as e:
         bot.send_message(chat_id, f"❌ আসল সমস্যা: {e}")
 
-# ----------------------------------------------------
-# ৫. পোলিং চালু রাখা
-# ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
 except Exception as e:
