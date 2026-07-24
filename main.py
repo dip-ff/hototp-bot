@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Site Console Mirror Active!", 200
+    return "HotOtp Site Console Rotating Feed Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -22,31 +22,31 @@ def run_web():
 threading.Thread(target=run_web, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও চ্যানেলের ইউজারনেম
+# ২. বটের মূল তথ্য (টোকেন ও কি সেট করা আছে)
 # ----------------------------------------------------
-BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার টেলিগ্রাম বট টোকেন বসান
-NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার এপিআই কি
+BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
+NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
 
 OTP_GROUP = "@hototpotp"                 # ওটিপি আপডেট গ্রুপ
 RANGE_GROUP = "@hototprange"             # আপনার লাইভ রেঞ্জ চ্যানেল
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_ranges = {}
-posted_signatures = set() # ডুপ্লিকেট বন্ধ রাখার ট্র্যাকার
+posted_signatures = [] # রোটেশনাল লিস্ট ট্র্যাকার
 
 print("---------------------------------")
-print("🔥 NexaOTP 1:1 Console Mirror Poster Running!")
+print("🔥 NexaOTP Rotating Live Feed Poster Running!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. অনবরত সাইট থেকে কনসোল লাইভ রেঞ্জ পোস্ট করার লুপ
+# ৩. অনবরত রানিং রেঞ্জ চ্যানেলে রিফ্রেশ পোস্ট করার লুপ
 # ----------------------------------------------------
 def auto_post_live_ranges():
     headers = {"X-API-Key": NEXA_API_KEY}
     
     while True:
         try:
-            url = "https://nexaotpservice.com/api/v1/console/logs?limit=50"
+            url = "https://nexaotpservice.com/api/v1/console/logs?limit=30"
             res = requests.get(url, headers=headers, timeout=10).json()
             
             logs = []
@@ -56,7 +56,7 @@ def auto_post_live_ranges():
                 logs = res.get("logs") or res.get("data") or res.get("recent") or []
 
             if isinstance(logs, list) and len(logs) > 0:
-                for item in reversed(logs[:15]):
+                for item in reversed(logs[:12]):
                     if not isinstance(item, dict):
                         continue
                     
@@ -66,18 +66,21 @@ def auto_post_live_ranges():
                     hits = str(item.get("hits") or item.get("count") or "").strip()
                     sms_preview = str(item.get("sms") or item.get("text") or item.get("message") or "").strip()
                     
-                    # প্রতিটি ওটিপি হিটের ইউনিক আইডি
-                    sig = f"{number}_{service}_{country}_{hits}_{sms_preview[:10]}"
+                    if not number or len(number) < 4:
+                        continue
+
+                    # ইউনিক আইডি
+                    sig = f"{number}_{service}_{country}_{hits}"
                     
-                    # যদি এই ওটিপি পোস্ট আগে করা হয়ে থাকে তবে স্কিপ করবে
+                    # সাম্প্রতিক পোস্টে থাকলে আপাতত স্কিপ করবে
                     if sig in posted_signatures:
                         continue
                     
-                    posted_signatures.add(sig)
-                    if len(posted_signatures) > 1000:
-                        posted_signatures.clear()
+                    posted_signatures.append(sig)
+                    # মেমোরিতে শুধু শেষ ১০টি পোস্ট রাখবে যাতে ঘুরেফিরে রেঞ্জ আপডেট হতে পারে
+                    if len(posted_signatures) > 10:
+                        posted_signatures.pop(0)
 
-                    # রেঞ্জ বানানো (যেমন: 236721XXX)
                     raw_num = number.replace("+", "").strip()
                     if "XXX" in raw_num:
                         range_str = raw_num
@@ -106,20 +109,19 @@ def auto_post_live_ranges():
 
                     try:
                         bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
-                        time.sleep(4) # টেলিগ্রাম স্প্যাম ফিল্টার এড়াতে ৪ সেকেন্ড বিরতি
+                        time.sleep(3) # ৩ সেকেন্ড গ্যাপ
                     except telebot.apihelper.ApiTelegramException as te:
-                        if te.error_code == 429: # টেলিগ্রাম রেট লিমিট দিলে
-                            print("Telegram Rate Limit! Waiting 30s...")
-                            time.sleep(30)
+                        if te.error_code == 429: # টেলিগ্রাম লিমিট দিলে
+                            time.sleep(25)
                         else:
                             print(f"Posting error: {te}")
                     except Exception as pe:
                         print(f"Posting error: {pe}")
-                        time.sleep(4)
+                        time.sleep(3)
         except Exception as e:
-            print(f"Mirror loop error: {e}")
+            print(f"Feed error: {e}")
         
-        time.sleep(15) # প্রতি ১৫ সেকেন্ড পর পর ওয়েবসাইট স্ক্যান করবে
+        time.sleep(20) # প্রতি ২০ সেকেন্ড পর পর স্ক্যান করবে
 
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
