@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Bot & Separate Range Poster Active!", 200
+    return "HotOtp Site Console Auto-Poster Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -22,45 +22,54 @@ def run_web():
 threading.Thread(target=run_web, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও ২ টি আলাদা গ্রুপের কনফিগারেশন
+# ২. বটের মূল তথ্য ও গ্রুপ কনফিগারেশন
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার টেলিগ্রাম বট টোকেন দিন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার এপিআই কি
 
 OTP_GROUP = "@hototpotp"                 # ওটিপি আপডেট গ্রুপ
-RANGE_GROUP = "@hototprange"  # লাইভ রেঞ্জের আলাদা গ্রুপ (এখানে রেঞ্জ গ্রুপের ইউজারনেম বসান)
+RANGE_GROUP = "@hototprange"  # সাইটের লাইভ রেঞ্জ পোস্ট হওয়ার আলাদা গ্রুপ
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_ranges = {}
 posted_sms_ids = set()
 
 print("---------------------------------")
-print("✅ Separate Range Group Auto-Poster Active!")
+print("✅ Site Console Live Range Auto-Poster Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. আলাদা "লাইভ রেঞ্জ গ্রুপে" অটো পোস্ট করার সিস্টেম
+# ৩. সরাসরি NexaOTP সাইটের কনসোল পেজ থেকে রেঞ্জ অটো পোস্ট করা
 # ----------------------------------------------------
 def auto_post_live_ranges():
     headers = {"X-API-Key": NEXA_API_KEY}
     while True:
         try:
+            # সরাসরি NexaOTP সাইটের কনসোল লগস এপিআই কল করা
             url = "https://nexaotpservice.com/api/v1/console/logs"
             res = requests.get(url, headers=headers, timeout=10).json()
             
             if isinstance(res, list):
+                # সাইটের লাইভ ডাটাগুলো রিভার্স করে নতুনগুলো আগে নেওয়া
                 for item in reversed(res[:15]): 
                     if isinstance(item, dict):
-                        num_id = str(item.get("number_id") or item.get("id") or item.get("number") or "")
+                        # সাইটের ইউনিক আইডি বা রেঞ্জ কি
+                        num_id = str(item.get("number_id") or item.get("id") or item.get("number") or item.get("range") or "")
                         if not num_id or num_id in posted_sms_ids:
                             continue
                         
-                        number = item.get("number", "")
-                        country = item.get("country", "Global")
-                        service = item.get("service", "Google / OTP")
+                        number = item.get("number") or item.get("range") or ""
+                        country = item.get("country") or "Global"
+                        service = item.get("service") or "OTP Service"
+                        hits = item.get("hits") or item.get("count") or ""
                         
-                        raw_num = number.replace("+", "").strip()
-                        if len(raw_num) > 8:
+                        hits_str = f"[{hits} hits]" if hits else ""
+
+                        # সাইটের নাম্বার থেকে রেঞ্জ প্রসেসিং (যেমন: 236721XXX)
+                        raw_num = str(number).replace("+", "").strip()
+                        if "XXX" in raw_num:
+                            range_str = raw_num
+                        elif len(raw_num) > 8:
                             range_str = raw_num[:8] + "XXX"
                         elif len(raw_num) > 5:
                             range_str = raw_num[:5] + "XXX"
@@ -71,12 +80,13 @@ def auto_post_live_ranges():
                         if len(posted_sms_ids) > 500:
                             posted_sms_ids.clear()
 
+                        # সাইটের কনসোলের ছবির মতো হুবহু মেসেজ ফরম্যাট
                         post_text = (
-                            f"🔥 **HOT LIVE RANGE HIT** 🔥\n\n"
-                            f"📱 **Active Range:** `{range_str}`\n"
+                            f"🔥 **NEXA OTP LIVE SIGNAL HIT** 🔥\n\n"
+                            f"📱 **Range:** `{range_str}`\n"
+                            f"🎯 **Service:** {service} {hits_str}\n"
                             f"🌐 **Country:** {country}\n"
-                            f"🎯 **Service:** {service}\n"
-                            f"📩 **Status:** OTP Received Successfully! ⭐\n\n"
+                            f"⚡ **Signal:** Live Signal (Old/Clone) ⚡\n\n"
                             f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিন:**"
                         )
 
@@ -84,19 +94,19 @@ def auto_post_live_ranges():
                         btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot")
                         markup.add(btn_bot)
 
-                        # পোস্টগুলো সরাসরি আলাদা "লাইভ রেঞ্জ গ্রুপে" চলে যাবে
+                        # সরাসরি আপনার "লাইভ রেঞ্জ গ্রুপে" পোস্ট চলে যাবে
                         if RANGE_GROUP and RANGE_GROUP != "@your_live_range_group":
                             bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
                         time.sleep(3)
         except Exception:
             pass
         
-        time.sleep(30)
+        time.sleep(20) # প্রতি ২০ সেকেন্ড পর পর ওয়েবসাইট স্ক্যান করবে
 
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৪. ওটিপি ফিল্টার ও বটের মূল ফাংশন
+# ৪. ওটিপি ফিল্টার ও বটের মূল সার্ভিস
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -138,7 +148,6 @@ def auto_check_otp(chat_id, num_id, number):
             bot.send_message(chat_id, f"🎉 **ওটিপি চলে এসেছে!**\n\n{otp}", parse_mode="Markdown")
             return
 
-# মূল মেনু
 def main_menu(chat_id):
     markup = types.InlineKeyboardMarkup(row_width=1)
     saved_r = user_ranges.get(chat_id)
@@ -151,9 +160,8 @@ def main_menu(chat_id):
         btn_range = types.InlineKeyboardButton("⚙️ প্রথমে রেঞ্জ সেট করুন", callback_data="ask_range")
         markup.add(btn_range)
         
-    btn_live = types.InlineKeyboardButton("📊 লাইভ রেঞ্জ দেখুন (Console)", callback_data="view_live_console")
+    btn_live = types.InlineKeyboardButton("📊 সাইটের লাইভ রেঞ্জ দেখুন (Console)", callback_data="view_live_console")
     
-    # আলাদা ২টি গ্রুপের বাটন
     range_link = f"https://t.me/{RANGE_GROUP.replace('@', '')}"
     otp_link = f"https://t.me/{OTP_GROUP.replace('@', '')}"
     
@@ -194,22 +202,24 @@ def callback_inline(call):
             bot.register_next_step_handler(msg, process_save_range)
 
     elif call.data == "view_live_console":
-        bot.send_message(chat_id, "⏳ NexaOTP Console থেকে রিসেন্ট ওটিপি রিসিভ হওয়া রেঞ্জগুলো আনা হচ্ছে...")
+        bot.send_message(chat_id, "⏳ NexaOTP Console থেকে সরাসরি সাইটের রানিং রেঞ্জগুলো আনা হচ্ছে...")
         headers = {"X-API-Key": NEXA_API_KEY}
         try:
             url = "https://nexaotpservice.com/api/v1/console/logs"
             res = requests.get(url, headers=headers, timeout=10).json()
             
             if isinstance(res, list) and len(res) > 0:
-                report_lines = ["📊 **NexaOTP Live Console Hits** 📊\n"]
+                report_lines = ["📊 **NexaOTP Site Live Console Hits** 📊\n"]
                 seen_ranges = set()
                 count = 0
                 
                 for item in res:
                     if isinstance(item, dict) and count < 8:
-                        num = item.get("number", "")
-                        raw_num = num.replace("+", "").strip()
-                        if len(raw_num) > 8:
+                        num = item.get("number") or item.get("range") or ""
+                        raw_num = str(num).replace("+", "").strip()
+                        if "XXX" in raw_num:
+                            r_str = raw_num
+                        elif len(raw_num) > 8:
                             r_str = raw_num[:8] + "XXX"
                         elif len(raw_num) > 5:
                             r_str = raw_num[:5] + "XXX"
@@ -223,7 +233,10 @@ def callback_inline(call):
                         
                         country = item.get("country", "Unknown")
                         service = item.get("service", "OTP")
-                        report_lines.append(f"• **Range:** `{r_str}`\n  🌐 Country: {country} | 🎯 Service: {service}\n")
+                        hits = item.get("hits") or ""
+                        hits_str = f"[{hits} hits]" if hits else ""
+                        
+                        report_lines.append(f"• **Range:** `{r_str}`\n  🌐 Country: {country} | 🎯 Service: {service} {hits_str}\n")
                 
                 report_text = "\n".join(report_lines) + "\n💡 _রেঞ্জের ওপর চাপ দিলে কপি হয়ে যাবে!_"
                 markup = types.InlineKeyboardMarkup()
