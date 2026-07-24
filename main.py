@@ -24,7 +24,7 @@ threading.Thread(target=run_web, daemon=True).start()
 # ----------------------------------------------------
 # ২. বটের মূল তথ্য ও অটো-পোস্ট কনফিগারেশন
 # ----------------------------------------------------
-BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"  # আপনার টেলিগ্রাম বট টোকেন দিন
+BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার টেলিগ্রাম বট টোকেন দিন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার এপিআই কি
 CHANNEL_ID = "@hototpotp"              # আপনার লাইভ ওটিপি গ্রুপ/চ্যানেল
 
