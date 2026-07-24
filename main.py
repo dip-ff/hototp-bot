@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Site Console Auto-Poster Active!", 200
+    return "HotOtp Site Console Mirror Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -32,20 +32,21 @@ RANGE_GROUP = "@hototprange"             # আপনার লাইভ রে�
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_ranges = {}
-posted_sms_ids = set()
+posted_signatures = set() # অনন্য সিগনেচার ট্র্যাকার
 
 print("---------------------------------")
-print("🔥 NexaOTP Console Real-Time Range Poster Running!")
+print("🔥 NexaOTP 1:1 Console Mirror Poster Running!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. অনবরত সাইট থেকে লাইভ রেঞ্জ পোস্ট করার ক্র্যাশ-প্রুফ লুপ
+# ৩. সাইটের কনসোল হুবহু কপি করে চ্যানেলে পোস্ট করার লুপ
 # ----------------------------------------------------
 def auto_post_live_ranges():
     headers = {"X-API-Key": NEXA_API_KEY}
     
     while True:
         try:
+            # সাইটের কনসোল ডাটা আনবে
             url = "https://nexaotpservice.com/api/v1/console/logs?limit=50"
             res = requests.get(url, headers=headers, timeout=10).json()
             
@@ -56,59 +57,66 @@ def auto_post_live_ranges():
                 logs = res.get("logs") or res.get("data") or res.get("recent") or []
 
             if isinstance(logs, list) and len(logs) > 0:
-                for item in reversed(logs[:15]):
+                # কনসোলের ডাটাগুলো ১:১ প্রসেস করা
+                for item in reversed(logs[:20]):
                     if not isinstance(item, dict):
                         continue
                     
-                    num_id = str(item.get("number_id") or item.get("id") or item.get("number") or item.get("range") or "")
+                    number = str(item.get("number") or item.get("range") or "").strip()
+                    country = str(item.get("country") or "Global").strip()
+                    service = str(item.get("service") or "OTP Service").strip()
+                    hits = str(item.get("hits") or item.get("count") or "").strip()
+                    sms_preview = str(item.get("sms") or item.get("text") or item.get("message") or "").strip()
                     
-                    # যদি নতুন ওটিপি হিট হয়
-                    if num_id and num_id not in posted_sms_ids:
-                        posted_sms_ids.add(num_id)
+                    # ইউনিক সিগনেচার (যাতে কোনো ভিন্ন ডাটা মিস না হয়)
+                    sig = f"{number}_{service}_{country}_{hits}_{sms_preview[:10]}"
+                    
+                    if sig in posted_signatures:
+                        continue
+                    
+                    posted_signatures.add(sig)
+                    if len(posted_signatures) > 1000:
+                        posted_signatures.clear()
+
+                    # রেঞ্জ ফরমেটিং (যেমন: 236721XXX)
+                    raw_num = number.replace("+", "").strip()
+                    if "XXX" in raw_num:
+                        range_str = raw_num
+                    elif len(raw_num) > 8:
+                        range_str = raw_num[:8] + "XXX"
+                    elif len(raw_num) > 5:
+                        range_str = raw_num[:5] + "XXX"
+                    else:
+                        range_str = raw_num + "XXX"
+
+                    hits_str = f"[{hits} hits]" if hits else ""
+                    msg_text_display = f"`{sms_preview}`" if sms_preview else "Live Signal Received ⭐"
+
+                    # সাইটের হুবহু লেআউট
+                    post_text = (
+                        f"🔥 **NEXA OTP LIVE CONSOLE** 🔥\n\n"
+                        f"📱 **Range:** `{range_str}`\n"
+                        f"🎯 **Service:** {service} {hits_str}\n"
+                        f"🌐 **Country:** {country}\n"
+                        f"💬 **SMS:** {msg_text_display}\n\n"
+                        f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিতে নিচে চাপ দিন:**"
+                    )
+
+                    markup = types.InlineKeyboardMarkup()
+                    btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot")
+                    markup.add(btn_bot)
+
+                    try:
+                        bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
+                    except Exception as pe:
+                        print(f"Posting limit: {pe}")
+                        time.sleep(3)
                         
-                        if len(posted_sms_ids) > 800:
-                            posted_sms_ids.clear()
-
-                        number = item.get("number") or item.get("range") or ""
-                        country = item.get("country") or "Global"
-                        service = item.get("service") or "OTP Service"
-                        hits = item.get("hits") or item.get("count") or ""
-                        hits_str = f"[{hits} hits]" if hits else ""
-
-                        raw_num = str(number).replace("+", "").strip()
-                        if "XXX" in raw_num:
-                            range_str = raw_num
-                        elif len(raw_num) > 8:
-                            range_str = raw_num[:8] + "XXX"
-                        elif len(raw_num) > 5:
-                            range_str = raw_num[:5] + "XXX"
-                        else:
-                            range_str = raw_num + "XXX"
-
-                        post_text = (
-                            f"🔥 **NEXA OTP LIVE SIGNAL HIT** 🔥\n\n"
-                            f"📱 **Range:** `{range_str}`\n"
-                            f"🎯 **Service:** {service} {hits_str}\n"
-                            f"🌐 **Country:** {country}\n"
-                            f"⚡ **Signal:** Live Signal (Old/Clone) ⚡\n\n"
-                            f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিতে নিচে চাপ দিন:**"
-                        )
-
-                        markup = types.InlineKeyboardMarkup()
-                        btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot")
-                        markup.add(btn_bot)
-
-                        try:
-                            bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
-                        except Exception as pe:
-                            print(f"Post Limit Error: {pe}")
-                            time.sleep(5)
-                            
-                        time.sleep(4) # টেলিগ্রাম স্প্যাম ফিল্টার এড়াতে ৪ সেকেন্ড গ্যাপ
+                    time.sleep(3) # ৩ সেকেন্ড বিরতিতে পোস্ট করতে থাকবে
         except Exception as e:
-            print(f"Loop Error: {e}")
+            print(f"Mirror fetch error: {e}")
         
-        time.sleep(25) # প্রতি ২৫ সেকেন্ড পর পর সাইট অটো স্ক্যান করবে
+        time.sleep(10) # প্রতি ১০ সেকেন্ড পরপর সাইট স্ক্যান
 
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
@@ -118,7 +126,7 @@ threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 @bot.message_handler(commands=['testconsole'])
 def test_console_cmd(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "⏳ NexaOTP সাইটের লাইভ কনসোল থেকে ডাটা চেক করা হচ্ছে...")
+    bot.send_message(chat_id, "⏳ NexaOTP সাইটের লাইভ কনসোল ডাটা আনা হচ্ছে...")
     headers = {"X-API-Key": NEXA_API_KEY}
     try:
         url = "https://nexaotpservice.com/api/v1/console/logs?limit=50"
@@ -130,30 +138,33 @@ def test_console_cmd(message):
         
         if logs and len(logs) > 0:
             first_item = logs[0]
-            number = first_item.get("number") or first_item.get("range") or ""
-            country = first_item.get("country") or "Global"
-            service = first_item.get("service") or "OTP Service"
+            number = str(first_item.get("number") or first_item.get("range") or "").strip()
+            country = str(first_item.get("country") or "Global").strip()
+            service = str(first_item.get("service") or "OTP Service").strip()
+            sms_preview = str(first_item.get("sms") or first_item.get("text") or first_item.get("message") or "").strip()
             
-            raw_num = str(number).replace("+", "").strip()
+            raw_num = number.replace("+", "").strip()
             if "XXX" in raw_num: range_str = raw_num
             elif len(raw_num) > 8: range_str = raw_num[:8] + "XXX"
             else: range_str = raw_num + "XXX"
 
+            msg_text_display = f"`{sms_preview}`" if sms_preview else "Live Signal Received ⭐"
+
             post_text = (
-                f"🔥 **NEXA OTP LIVE SIGNAL HIT** 🔥\n\n"
+                f"🔥 **NEXA OTP LIVE CONSOLE** 🔥\n\n"
                 f"📱 **Range:** `{range_str}`\n"
                 f"🎯 **Service:** {service}\n"
                 f"🌐 **Country:** {country}\n"
-                f"⚡ **Signal:** Live Signal (Old/Clone) ⚡\n\n"
+                f"💬 **SMS:** {msg_text_display}\n\n"
                 f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিন:**"
             )
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot"))
             
             bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
-            bot.send_message(chat_id, f"🎉 **সফল হয়েছে!**\n\nসাইট থেকে ওটিপি ডাটা পেয়ে `{RANGE_GROUP}` চ্যানেলে ১টি লাইভ রেঞ্জ পোস্ট পাঠানো হয়েছে!", parse_mode="Markdown")
+            bot.send_message(chat_id, f"🎉 **সফল হয়েছে!**\n\nসাইট থেকে কনসোল ডাটা নিয়ে `{RANGE_GROUP}` চ্যানেলে পাঠানো হয়েছে!", parse_mode="Markdown")
         else:
-            bot.send_message(chat_id, f"⚠️ সাইট থেকে এপিআই রেসপন্স এসেছে কিন্তু কোনো ডাটা মেলেনি:\n`{res}`", parse_mode="Markdown")
+            bot.send_message(chat_id, f"⚠️ এপিআই রেসপন্স:\n`{res}`", parse_mode="Markdown")
     except Exception as e:
         bot.send_message(chat_id, f"❌ এপিআই এরর: {e}")
 
