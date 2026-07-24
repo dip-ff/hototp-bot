@@ -14,7 +14,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Master Panel Active!", 200
+    return "HotOtp Bot & Range Poster Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -23,10 +23,10 @@ def run_web():
 threading.Thread(target=run_web, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও কনফিগারেশন
+# ২. বটের মূল তথ্য ও কনফিগারেশন (আপনার আসল লিংকসহ)
 # ----------------------------------------------------
-BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # বটের টোকেন
-NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # NexaOTP এপিআই কি
+BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
+NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
 
 BOT_USERNAME = "hot_opt_bot"              # বটের ইউজারনেম
 OTP_GROUP = "@hototpotp"                 # ওটিপি আপডেট গ্রুপ
@@ -43,7 +43,7 @@ def load_data():
             with open(DATA_FILE, "r") as f:
                 return json.load(f)
         except: pass
-    return {"users": [], "balances": {}, "services": {}, "countries": {}, "ranges": {}, "total_otps": 0}
+    return {"users": [], "balances": {}, "ranges": {}, "total_otps": 0}
 
 def save_data():
     try:
@@ -54,29 +54,12 @@ def save_data():
 db = load_data()
 posted_signatures = set()
 
-SERVICES = {
-    "google": "🔴 Google / Gmail",
-    "telegram": "🔵 Telegram",
-    "whatsapp": "🟢 WhatsApp",
-    "facebook": "🟣 Facebook",
-    "imo": "🟡 Imo",
-    "instagram": "⚪ Instagram"
-}
-
-COUNTRIES = {
-    "BD": "🇧🇩 Bangladesh",
-    "GN": "🇬🇳 Guinea",
-    "IN": "🇮🇳 India",
-    "ID": "🇮🇩 Indonesia",
-    "VN": "🇻🇳 Vietnam"
-}
-
 print("---------------------------------")
-print("🔥 HotOtp Master Panel Bot Running!")
+print("🔥 HotOtp Clean Range Panel Bot Running!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. কনসোল অটো-পোস্টার
+# ৩. সাইটের কনসোল লাইভ অটো-পোস্টার
 # ----------------------------------------------------
 def fetch_all_site_logs():
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -190,37 +173,27 @@ def auto_check_otp(chat_id, num_id, number):
 # ----------------------------------------------------
 def main_menu(chat_id):
     chat_str = str(chat_id)
-    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(row_width=1)
     
     saved_r = db["ranges"].get(chat_str)
-    cur_service = db["services"].get(chat_str, "google")
-    cur_country = db["countries"].get(chat_str, "BD")
-    
-    service_name = SERVICES.get(cur_service, "Google")
-    country_name = COUNTRIES.get(cur_country, "Bangladesh")
 
     if saved_r:
-        btn_num = types.InlineKeyboardButton(f"📱 নতুন নাম্বার ({saved_r})", callback_data="get_num_auto")
-        btn_range = types.InlineKeyboardButton("⚙️ রেঞ্জ চেঞ্জ", callback_data="ask_range")
+        btn_num = types.InlineKeyboardButton(f"📱 নতুন নাম্বার নিন ({saved_r})", callback_data="get_num_auto")
+        btn_range = types.InlineKeyboardButton("⚙️ রেঞ্জ চেঞ্জ করুন", callback_data="ask_range")
         markup.add(btn_num, btn_range)
     else:
         btn_range = types.InlineKeyboardButton("⚙️ প্রথমে রেঞ্জ সেট করুন", callback_data="ask_range")
         markup.add(btn_range)
 
-    btn_svc = types.InlineKeyboardButton(f"🎯 সার্ভিস: {service_name}", callback_data="select_service_menu")
-    btn_cnt = types.InlineKeyboardButton(f"🌐 দেশ: {country_name}", callback_data="select_country_menu")
     btn_wallet = types.InlineKeyboardButton("💳 আমার ওয়ালেট & রিচার্জ", callback_data="view_wallet")
-    btn_channel = types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেল", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
-    btn_reset = types.InlineKeyboardButton("🔄 রিসেট করুন", callback_data="reset_all")
+    btn_channel = types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেল (@hototprange)", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
+    btn_reset = types.InlineKeyboardButton("🔄 সবকিছু রিসেট করুন", callback_data="reset_all")
 
-    markup.add(btn_svc)
-    markup.add(btn_cnt)
-    markup.add(btn_wallet)
-    markup.add(btn_channel, btn_reset)
+    markup.add(btn_wallet, btn_channel, btn_reset)
     return markup
 
 # ----------------------------------------------------
-# ৬. বট কমান্ডস (Start, MyID, Stats, Broadcast, AddBalance)
+# ৬. বট কমান্ডস
 # ----------------------------------------------------
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -228,10 +201,9 @@ def send_welcome(message):
     chat_str = str(chat_id)
     bot.clear_step_handler_by_chat_id(chat_id)
 
-    # নতুন ইউজার সেভ করা
     if chat_id not in db["users"]:
         db["users"].append(chat_id)
-        if chat_str not in db["balances"]: db["balances"][chat_str] = 20.0 # ফ্রি ২০ টাকা ওয়েলকাম বোনাস
+        if chat_str not in db["balances"]: db["balances"][chat_str] = 20.0
         save_data()
 
     args = message.text.split()
@@ -245,7 +217,7 @@ def send_welcome(message):
 
     db["ranges"].pop(chat_str, None)
     save_data()
-    bot.send_message(chat_id, "🔥 **HotOtp Master Panel**-এ স্বাগতম!\n\nনিচে থেকে আপনার প্রয়োজনীয় অপশন বেছে নিন:", reply_markup=main_menu(chat_id), parse_mode="Markdown")
+    bot.send_message(chat_id, "🔥 **HotOtp Bot**-এ স্বাগতম!\n\nনিচে থেকে আপনার প্রয়োজনীয় অপশন বেছে নিন:", reply_markup=main_menu(chat_id), parse_mode="Markdown")
 
 @bot.message_handler(commands=['myid'])
 def my_id_command(message):
@@ -320,33 +292,6 @@ def callback_inline(call):
             msg = bot.send_message(chat_id, "আপনার কোনো রেঞ্জ সেট করা নেই। রেঞ্জ টাইপ করুন:")
             bot.register_next_step_handler(msg, process_save_range)
 
-    # সার্ভিস সিলেক্ট মেনু
-    elif call.data == "select_service_menu":
-        markup = types.InlineKeyboardMarkup(row_width=2)
-        for code, name in SERVICES.items():
-            markup.add(types.InlineKeyboardButton(name, callback_data=f"set_svc_{code}"))
-        bot.send_message(chat_id, "🎯 আপনার পছন্দের অ্যাপ/সার্ভিসটি বেছে নিন:", reply_markup=markup)
-
-    elif call.data.startswith("set_svc_"):
-        svc_code = call.data.replace("set_svc_", "")
-        db["services"][chat_str] = svc_code
-        save_data()
-        bot.send_message(chat_id, f"✅ সার্ভিস সেট করা হয়েছে: **{SERVICES.get(svc_code)}**", reply_markup=main_menu(chat_id), parse_mode="Markdown")
-
-    # দেশ সিলেক্ট মেনু
-    elif call.data == "select_country_menu":
-        markup = types.InlineKeyboardMarkup(row_width=2)
-        for code, name in COUNTRIES.items():
-            markup.add(types.InlineKeyboardButton(name, callback_data=f"set_cnt_{code}"))
-        bot.send_message(chat_id, "🌐 আপনার পছন্দের দেশটি বেছে নিন:", reply_markup=markup)
-
-    elif call.data.startswith("set_cnt_"):
-        cnt_code = call.data.replace("set_cnt_", "")
-        db["countries"][chat_str] = cnt_code
-        save_data()
-        bot.send_message(chat_id, f"✅ দেশ সেট করা হয়েছে: **{COUNTRIES.get(cnt_code)}**", reply_markup=main_menu(chat_id), parse_mode="Markdown")
-
-    # ওয়ালেট ও রিচার্জ
     elif call.data == "view_wallet":
         bal = db["balances"].get(chat_str, 0.0)
         text = (
@@ -360,7 +305,6 @@ def callback_inline(call):
         markup.add(types.InlineKeyboardButton("💬 এডমিনের সাথে কথা বলুন", url="https://t.me/hototpotp"))
         bot.send_message(chat_id, text, reply_markup=markup, parse_mode="Markdown")
 
-    # নাম্বার ক্যানসেল করা
     elif call.data.startswith("cancel_num_"):
         bot.send_message(chat_id, "❌ **নাম্বার ক্যানসেল করা হয়েছে!**\nনতুন নাম্বার নিতে 'নতুন নাম্বার নিন' চাপুন।", reply_markup=main_menu(chat_id), parse_mode="Markdown")
 
@@ -379,26 +323,21 @@ def process_save_range(message):
     fetch_and_send_number(chat_id, new_range)
 
 def fetch_and_send_number(chat_id, user_range):
-    chat_str = str(chat_id)
-    svc = db["services"].get(chat_str, "google")
-    cnt = db["countries"].get(chat_str, "BD")
-    
-    bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে **{SERVICES.get(svc)}** নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
+    bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
     
     url = "https://nexaotpservice.com/api/v1/numbers/get"
     headers = {"X-API-Key": NEXA_API_KEY, "Content-Type": "application/json"}
-    payload = {"service": svc, "country": cnt, "range": user_range}
+    payload = {"service": "google", "country": "BD", "range": user_range}
     
     try:
         res = requests.post(url, headers=headers, json=payload, timeout=10).json()
         if res.get("success"):
-            country = res.get("country", COUNTRIES.get(cnt, "Unknown"))
+            country = res.get("country", "Unknown")
             number = res.get("number", "N/A")
             num_id = res.get("number_id", "")
             
             msg_text = (
                 f"🌐 **Country:** {country}\n"
-                f"🎯 **Service:** {SERVICES.get(svc)}\n"
                 f"🎯 **Active Range:** `{user_range}`\n"
                 f"💎 **Status:** Waiting for OTP ⭐\n\n"
                 f"👇 **নাম্বারটির ওপর চাপ দিলে কপি হবে:**\n`{number}`"
