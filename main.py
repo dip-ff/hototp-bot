@@ -32,21 +32,20 @@ RANGE_GROUP = "@hototprange"             # আপনার লাইভ রে�
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_ranges = {}
-posted_signatures = set() # অনন্য সিগনেচার ট্র্যাকার
+posted_signatures = set() # ডুপ্লিকেট বন্ধ রাখার ট্র্যাকার
 
 print("---------------------------------")
 print("🔥 NexaOTP 1:1 Console Mirror Poster Running!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. সাইটের কনসোল হুবহু কপি করে চ্যানেলে পোস্ট করার লুপ
+# ৩. অনবরত সাইট থেকে কনসোল লাইভ রেঞ্জ পোস্ট করার লুপ
 # ----------------------------------------------------
 def auto_post_live_ranges():
     headers = {"X-API-Key": NEXA_API_KEY}
     
     while True:
         try:
-            # সাইটের কনসোল ডাটা আনবে
             url = "https://nexaotpservice.com/api/v1/console/logs?limit=50"
             res = requests.get(url, headers=headers, timeout=10).json()
             
@@ -57,8 +56,7 @@ def auto_post_live_ranges():
                 logs = res.get("logs") or res.get("data") or res.get("recent") or []
 
             if isinstance(logs, list) and len(logs) > 0:
-                # কনসোলের ডাটাগুলো ১:১ প্রসেস করা
-                for item in reversed(logs[:20]):
+                for item in reversed(logs[:15]):
                     if not isinstance(item, dict):
                         continue
                     
@@ -68,9 +66,10 @@ def auto_post_live_ranges():
                     hits = str(item.get("hits") or item.get("count") or "").strip()
                     sms_preview = str(item.get("sms") or item.get("text") or item.get("message") or "").strip()
                     
-                    # ইউনিক সিগনেচার (যাতে কোনো ভিন্ন ডাটা মিস না হয়)
+                    # প্রতিটি ওটিপি হিটের ইউনিক আইডি
                     sig = f"{number}_{service}_{country}_{hits}_{sms_preview[:10]}"
                     
+                    # যদি এই ওটিপি পোস্ট আগে করা হয়ে থাকে তবে স্কিপ করবে
                     if sig in posted_signatures:
                         continue
                     
@@ -78,7 +77,7 @@ def auto_post_live_ranges():
                     if len(posted_signatures) > 1000:
                         posted_signatures.clear()
 
-                    # রেঞ্জ ফরমেটিং (যেমন: 236721XXX)
+                    # রেঞ্জ বানানো (যেমন: 236721XXX)
                     raw_num = number.replace("+", "").strip()
                     if "XXX" in raw_num:
                         range_str = raw_num
@@ -92,7 +91,6 @@ def auto_post_live_ranges():
                     hits_str = f"[{hits} hits]" if hits else ""
                     msg_text_display = f"`{sms_preview}`" if sms_preview else "Live Signal Received ⭐"
 
-                    # সাইটের হুবহু লেআউট
                     post_text = (
                         f"🔥 **NEXA OTP LIVE CONSOLE** 🔥\n\n"
                         f"📱 **Range:** `{range_str}`\n"
@@ -108,15 +106,20 @@ def auto_post_live_ranges():
 
                     try:
                         bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
+                        time.sleep(4) # টেলিগ্রাম স্প্যাম ফিল্টার এড়াতে ৪ সেকেন্ড বিরতি
+                    except telebot.apihelper.ApiTelegramException as te:
+                        if te.error_code == 429: # টেলিগ্রাম রেট লিমিট দিলে
+                            print("Telegram Rate Limit! Waiting 30s...")
+                            time.sleep(30)
+                        else:
+                            print(f"Posting error: {te}")
                     except Exception as pe:
-                        print(f"Posting limit: {pe}")
-                        time.sleep(3)
-                        
-                    time.sleep(3) # ৩ সেকেন্ড বিরতিতে পোস্ট করতে থাকবে
+                        print(f"Posting error: {pe}")
+                        time.sleep(4)
         except Exception as e:
-            print(f"Mirror fetch error: {e}")
+            print(f"Mirror loop error: {e}")
         
-        time.sleep(10) # প্রতি ১০ সেকেন্ড পরপর সাইট স্ক্যান
+        time.sleep(15) # প্রতি ১৫ সেকেন্ড পর পর ওয়েবসাইট স্ক্যান করবে
 
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
