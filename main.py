@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Bot & Separate Range Poster Active!", 200
+    return "HotOtp Site Console Auto-Poster Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -22,118 +22,97 @@ def run_web():
 threading.Thread(target=run_web, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও ২ টি আলাদা গ্রুপের কনফিগারেশন
+# ২. বটের মূল তথ্য ও আপনার চ্যানেলের ইউজারনেম
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার টেলিগ্রাম বট টোকেন দিন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার এপিআই কি
 
 OTP_GROUP = "@hototpotp"                 # ওটিপি আপডেট গ্রুপ
-RANGE_GROUP = "@hototprange"  # আপনার লাইভ রেঞ্জ চ্যানেলের ইউজারনেম (যেমন: @HotOtpRange)
+RANGE_GROUP = "@hototprange"             # আপনার লাইভ রেঞ্জ চ্যানেল
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_ranges = {}
 posted_sms_ids = set()
 
 print("---------------------------------")
-print("✅ Auto Poster & Diagnostic Test Bot Running!")
+print("✅ NexaOTP Site Real-Time Auto Poster Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. অটো পোস্ট লজিক
+# ৩. সরাসরি NexaOTP সাইটের কনসোল পেজ থেকে রিয়েল-টাইম রেঞ্জ অটো পোস্ট করা
 # ----------------------------------------------------
 def auto_post_live_ranges():
     headers = {"X-API-Key": NEXA_API_KEY}
+    
+    # প্রথমবার চালু হলে আগের ডাটা লোড করে রাখা যাতে নতুন ডাটা আসলে পোস্ট হয়
+    try:
+        url_init = "https://nexaotpservice.com/api/v1/console/logs"
+        res_init = requests.get(url_init, headers=headers, timeout=10).json()
+        if isinstance(res_init, list):
+            for item in res_init[:20]:
+                if isinstance(item, dict):
+                    i_id = str(item.get("number_id") or item.get("id") or item.get("number") or item.get("range") or "")
+                    if i_id:
+                        posted_sms_ids.add(i_id)
+    except Exception:
+        pass
+
     while True:
         try:
             url = "https://nexaotpservice.com/api/v1/console/logs"
             res = requests.get(url, headers=headers, timeout=10).json()
             
             if isinstance(res, list):
+                # নতুন ডাটা খুঁজে বের করা
                 for item in reversed(res[:15]): 
                     if isinstance(item, dict):
                         num_id = str(item.get("number_id") or item.get("id") or item.get("number") or item.get("range") or "")
-                        if not num_id or num_id in posted_sms_ids:
-                            continue
                         
-                        number = item.get("number") or item.get("range") or ""
-                        country = item.get("country") or "Global"
-                        service = item.get("service") or "OTP Service"
-                        hits = item.get("hits") or item.get("count") or ""
-                        hits_str = f"[{hits} hits]" if hits else ""
+                        if num_id and num_id not in posted_sms_ids:
+                            posted_sms_ids.add(num_id)
+                            
+                            number = item.get("number") or item.get("range") or ""
+                            country = item.get("country") or "Global"
+                            service = item.get("service") or "OTP Service"
+                            hits = item.get("hits") or item.get("count") or ""
+                            hits_str = f"[{hits} hits]" if hits else ""
 
-                        raw_num = str(number).replace("+", "").strip()
-                        if "XXX" in raw_num:
-                            range_str = raw_num
-                        elif len(raw_num) > 8:
-                            range_str = raw_num[:8] + "XXX"
-                        elif len(raw_num) > 5:
-                            range_str = raw_num[:5] + "XXX"
-                        else:
-                            range_str = raw_num + "XXX"
+                            # রেঞ্জ ফরমেটিং (যেমন: 236721XXX)
+                            raw_num = str(number).replace("+", "").strip()
+                            if "XXX" in raw_num:
+                                range_str = raw_num
+                            elif len(raw_num) > 8:
+                                range_str = raw_num[:8] + "XXX"
+                            elif len(raw_num) > 5:
+                                range_str = raw_num[:5] + "XXX"
+                            else:
+                                range_str = raw_num + "XXX"
 
-                        posted_sms_ids.add(num_id)
-                        if len(posted_sms_ids) > 500:
-                            posted_sms_ids.clear()
+                            post_text = (
+                                f"🔥 **NEXA OTP LIVE SIGNAL HIT** 🔥\n\n"
+                                f"📱 **Range:** `{range_str}`\n"
+                                f"🎯 **Service:** {service} {hits_str}\n"
+                                f"🌐 **Country:** {country}\n"
+                                f"⚡ **Signal:** Live Signal (Old/Clone) ⚡\n\n"
+                                f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিতে নিচে চাপ দিন:**"
+                            )
 
-                        post_text = (
-                            f"🔥 **NEXA OTP LIVE SIGNAL HIT** 🔥\n\n"
-                            f"📱 **Range:** `{range_str}`\n"
-                            f"🎯 **Service:** {service} {hits_str}\n"
-                            f"🌐 **Country:** {country}\n"
-                            f"⚡ **Signal:** Live Signal (Old/Clone) ⚡\n\n"
-                            f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিন:**"
-                        )
+                            markup = types.InlineKeyboardMarkup()
+                            btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot")
+                            markup.add(btn_bot)
 
-                        markup = types.InlineKeyboardMarkup()
-                        btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot")
-                        markup.add(btn_bot)
-
-                        if RANGE_GROUP and not RANGE_GROUP.startswith("@your_"):
-                            try:
-                                bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
-                            except Exception as e:
-                                print(f"Auto post send error: {e}")
-                        time.sleep(3)
+                            # সরাসরি @hototprange চ্যানেলে রিয়েল-টাইম রেঞ্জ পোস্ট পাঠানো
+                            bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
+                            time.sleep(2)
         except Exception as e:
-            print(f"Auto post loop error: {e}")
+            print(f"Auto Post Error: {e}")
         
-        time.sleep(20)
+        time.sleep(10) # প্রতি ১০ সেকেন্ড পর পর ওয়েবসাইট স্ক্যান করবে
 
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৪. টেস্ট পোস্ট কমান্ড (সমস্যা ধরার জন্য)
-# ----------------------------------------------------
-@bot.message_handler(commands=['testpost'])
-def test_post_command(message):
-    chat_id = message.chat.id
-    bot.send_message(chat_id, f"⏳ `{RANGE_GROUP}` চ্যানেলে টেস্ট পোস্ট পাঠানোর চেষ্টা করা হচ্ছে...", parse_mode="Markdown")
-    
-    test_text = (
-        f"🔥 **HOT OTP RANGE TEST POST** 🔥\n\n"
-        f"এটি একটি টেস্ট মেসেজ! আপনার লাইভ রেঞ্জ অটো-পোস্টার পুরোপুরি সচল রয়েছে।\n"
-        f"🎯 Channel: `{RANGE_GROUP}`"
-    )
-    
-    markup = types.InlineKeyboardMarkup()
-    btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot", url="https://t.me/HotOtpBot")
-    markup.add(btn_bot)
-    
-    try:
-        bot.send_message(RANGE_GROUP, test_text, reply_markup=markup, parse_mode="Markdown")
-        bot.send_message(chat_id, f"🎉 **সফল হয়েছে!**\n\n`{RANGE_GROUP}` চ্যানেলে টেস্ট পোস্ট চলে গেছে! চেক করে দেখুন।", parse_mode="Markdown")
-    except Exception as e:
-        bot.send_message(
-            chat_id, 
-            f"❌ **পোস্ট পাঠাতে এরর হচ্ছে:**\n`{e}`\n\n"
-            f"💡 **সম্ভাব্য কারণ:**\n"
-            f"১. চ্যানেলের ইউজারনেম `{RANGE_GROUP}` সঠিক আছে কি না চেক করুন।\n"
-            f"২. বটটিকে চ্যানেলে ঢুকে **Add Admin** হিসেবে এড করেছেন কি না নিশ্চিত হন।", 
-            parse_mode="Markdown"
-        )
-
-# ----------------------------------------------------
-# ৫. ওটিপি ফিল্টার ও বটের মূল সার্ভিস
+# ৪. ওটিপি ফিল্টার ও বটের মূল সার্ভিস
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
