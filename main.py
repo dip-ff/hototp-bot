@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Bot & Live Range Poster Active!", 200
+    return "HotOtp Site Console Auto-Poster Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -47,12 +47,18 @@ def auto_post_live_ranges():
 
     while True:
         try:
-            url = "https://nexaotpservice.com/api/v1/console/logs"
+            url = "https://nexaotpservice.com/api/v1/console/logs?limit=50"
             res = requests.get(url, headers=headers, timeout=10).json()
             
-            if isinstance(res, list) and len(res) > 0:
-                # প্রথমবার চালুর সময় সেরা ৫টি রেঞ্জ সাথে সাথে পোস্ট করবে
-                items_to_process = reversed(res[:5]) if first_run else reversed(res[:12])
+            # স্মার্ট ডাটা এক্সট্রাকশন (লিস্ট বা ডিকশনারি যাই আসুক না কেন)
+            logs = []
+            if isinstance(res, list):
+                logs = res
+            elif isinstance(res, dict):
+                logs = res.get("logs") or res.get("data") or res.get("recent") or res.get("items") or []
+
+            if isinstance(logs, list) and len(logs) > 0:
+                items_to_process = reversed(logs[:5]) if first_run else reversed(logs[:15])
                 first_run = False
 
                 for item in items_to_process:
@@ -102,13 +108,58 @@ def auto_post_live_ranges():
         except Exception as e:
             print(f"Fetch error: {e}")
         
-        time.sleep(20) # প্রতি ২০ সেকেন্ড পর পর ওয়েবসাইট স্ক্যান করবে
+        time.sleep(15) # প্রতি ১৫ সেকেন্ড পর পর ওয়েবসাইট স্ক্যান করবে
 
 # ব্যাকগ্রাউন্ডে অটো পোস্টিং থ্রেড চালু করা
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৪. ওটিপি ফিল্টার ও বটের মূল সার্ভিস
+# ৪. ম্যানুয়াল টেস্ট কনসোল কমান্ড (/testconsole)
+# ----------------------------------------------------
+@bot.message_handler(commands=['testconsole'])
+def test_console_cmd(message):
+    chat_id = message.chat.id
+    bot.send_message(chat_id, "⏳ NexaOTP সাইটের লাইভ কনসোল থেকে ডাটা চেক করা হচ্ছে...")
+    headers = {"X-API-Key": NEXA_API_KEY}
+    try:
+        url = "https://nexaotpservice.com/api/v1/console/logs?limit=50"
+        res = requests.get(url, headers=headers, timeout=10).json()
+        
+        logs = []
+        if isinstance(res, list): logs = res
+        elif isinstance(res, dict): logs = res.get("logs") or res.get("data") or res.get("recent") or []
+        
+        if logs and len(logs) > 0:
+            first_item = logs[0]
+            number = first_item.get("number") or first_item.get("range") or ""
+            country = first_item.get("country") or "Global"
+            service = first_item.get("service") or "OTP Service"
+            
+            raw_num = str(number).replace("+", "").strip()
+            if "XXX" in raw_num: range_str = raw_num
+            elif len(raw_num) > 8: range_str = raw_num[:8] + "XXX"
+            else: range_str = raw_num + "XXX"
+
+            post_text = (
+                f"🔥 **NEXA OTP LIVE SIGNAL HIT** 🔥\n\n"
+                f"📱 **Range:** `{range_str}`\n"
+                f"🎯 **Service:** {service}\n"
+                f"🌐 **Country:** {country}\n"
+                f"⚡ **Signal:** Live Signal (Old/Clone) ⚡\n\n"
+                f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিন:**"
+            )
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot"))
+            
+            bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
+            bot.send_message(chat_id, f"🎉 **সফল হয়েছে!**\n\nসাইট থেকে ওটিপি ডাটা পেয়ে `{RANGE_GROUP}` চ্যানেলে ১টি লাইভ রেঞ্জ পোস্ট পাঠানো হয়েছে!", parse_mode="Markdown")
+        else:
+            bot.send_message(chat_id, f"⚠️ সাইট থেকে এপিআই রেসপন্স এসেছে কিন্তু কোনো ডাটা মেলেনি:\n`{res}`", parse_mode="Markdown")
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ এপিআই এরর: {e}")
+
+# ----------------------------------------------------
+# ৫. ওটিপি ফিল্টার ও বটের মূল সার্ভিস
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -128,16 +179,20 @@ def fetch_otp(num_id, number):
     try:
         url2 = "https://nexaotpservice.com/api/v1/console/logs"
         res2 = requests.get(url2, headers=headers, timeout=5).json()
-        if isinstance(res2, list):
-            for item in res2:
-                if isinstance(item, dict):
-                    if item.get("number") == number or item.get("number_id") == num_id:
-                        sms = item.get("sms") or item.get("text") or item.get("message") or ""
-                        code = item.get("code") or item.get("otp") or ""
-                        if code and "******" not in str(code):
-                            return f"🔢 **OTP Code:** `{code}`\n\n📩 **SMS:** `{sms}`"
-                        if sms and "******" not in str(sms):
-                            return f"📩 **SMS:** `{sms}`"
+        
+        logs = []
+        if isinstance(res2, list): logs = res2
+        elif isinstance(res2, dict): logs = res2.get("logs") or res2.get("data") or res2.get("recent") or []
+        
+        for item in logs:
+            if isinstance(item, dict):
+                if item.get("number") == number or item.get("number_id") == num_id:
+                    sms = item.get("sms") or item.get("text") or item.get("message") or ""
+                    code = item.get("code") or item.get("otp") or ""
+                    if code and "******" not in str(code):
+                        return f"🔢 **OTP Code:** `{code}`\n\n📩 **SMS:** `{sms}`"
+                    if sms and "******" not in str(sms):
+                        return f"📩 **SMS:** `{sms}`"
     except Exception:
         pass
     return None
@@ -239,7 +294,7 @@ def fetch_and_send_number(chat_id, user_range):
         bot.send_message(chat_id, f"❌ আসল সমস্যা: {e}")
 
 # ----------------------------------------------------
-# ৫. পোলিং চালু রাখা
+# ৬. পোলিং চালু রাখা
 # ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
