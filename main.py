@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Site Console Rotating Feed Active!", 200
+    return "HotOtp All-Engine Multi Poster Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -22,7 +22,7 @@ def run_web():
 threading.Thread(target=run_web, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য (টোকেন ও কি সেট করা আছে)
+# ২. বটের মূল তথ্য ও চ্যানেলের ইউজারনেম
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
@@ -32,55 +32,77 @@ RANGE_GROUP = "@hototprange"             # আপনার লাইভ রে�
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_ranges = {}
-posted_signatures = [] # রোটেশনাল লিস্ট ট্র্যাকার
+posted_signatures = set()
 
 print("---------------------------------")
-print("🔥 NexaOTP Rotating Live Feed Poster Running!")
+print("🔥 NexaOTP All-Engine Live Scanner Running!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. অনবরত রানিং রেঞ্জ চ্যানেলে রিফ্রেশ পোস্ট করার লুপ
+# ৩. সবকটি ইঞ্জিন (Engine 1, 2, 3 & Recent) স্ক্যান করার ফাংশন
+# ----------------------------------------------------
+def fetch_all_site_logs():
+    headers = {"X-API-Key": NEXA_API_KEY}
+    all_items = []
+    
+    # NexaOTP সাইটের সবকটি ইঞ্জিন এন্ডপয়েন্ট
+    endpoints = [
+        "https://nexaotpservice.com/api/v1/console/logs?limit=30",
+        "https://nexaotpservice.com/api/v1/console/logs/engine2?limit=30",
+        "https://nexaotpservice.com/api/v1/console/logs/engine3?limit=30",
+        "https://nexaotpservice.com/api/v1/sms/recent?limit=30",
+        "https://nexaotpservice.com/api/v1/console/live"
+    ]
+    
+    for ep in endpoints:
+        try:
+            r = requests.get(ep, headers=headers, timeout=5).json()
+            items = []
+            if isinstance(r, list):
+                items = r
+            elif isinstance(r, dict):
+                items = r.get("logs") or r.get("data") or r.get("recent") or r.get("sms") or []
+            
+            if isinstance(items, list):
+                all_items.extend(items)
+        except Exception:
+            pass
+            
+    return all_items
+
+# ----------------------------------------------------
+# ৪. অল-ইঞ্জিন অটো-পোস্টার লুপ
 # ----------------------------------------------------
 def auto_post_live_ranges():
-    headers = {"X-API-Key": NEXA_API_KEY}
-    
     while True:
         try:
-            url = "https://nexaotpservice.com/api/v1/console/logs?limit=30"
-            res = requests.get(url, headers=headers, timeout=10).json()
-            
-            logs = []
-            if isinstance(res, list):
-                logs = res
-            elif isinstance(res, dict):
-                logs = res.get("logs") or res.get("data") or res.get("recent") or []
+            logs = fetch_all_site_logs()
 
             if isinstance(logs, list) and len(logs) > 0:
-                for item in reversed(logs[:12]):
+                for item in logs:
                     if not isinstance(item, dict):
                         continue
                     
                     number = str(item.get("number") or item.get("range") or "").strip()
                     country = str(item.get("country") or "Global").strip()
                     service = str(item.get("service") or "OTP Service").strip()
-                    hits = str(item.get("hits") or item.get("count") or "").strip()
-                    sms_preview = str(item.get("sms") or item.get("text") or item.get("message") or "").strip()
-                    
+                    sms_preview = str(item.get("sms") or item.get("text") or item.get("message") or item.get("code") or "").strip()
+                    time_id = str(item.get("id") or item.get("number_id") or item.get("time") or item.get("created_at") or "")
+
                     if not number or len(number) < 4:
                         continue
 
-                    # ইউনিক আইডি
-                    sig = f"{number}_{service}_{country}_{hits}"
+                    # অনন্য সিগনেচার (যাতে প্রতিটি নতুন কোড ধরা পড়ে)
+                    sig = f"{number}_{service}_{country}_{sms_preview[:15]}_{time_id}"
                     
-                    # সাম্প্রতিক পোস্টে থাকলে আপাতত স্কিপ করবে
                     if sig in posted_signatures:
                         continue
                     
-                    posted_signatures.append(sig)
-                    # মেমোরিতে শুধু শেষ ১০টি পোস্ট রাখবে যাতে ঘুরেফিরে রেঞ্জ আপডেট হতে পারে
-                    if len(posted_signatures) > 10:
-                        posted_signatures.pop(0)
+                    posted_signatures.add(sig)
+                    if len(posted_signatures) > 1500:
+                        posted_signatures.clear()
 
+                    # রেঞ্জ ফরম্যাট
                     raw_num = number.replace("+", "").strip()
                     if "XXX" in raw_num:
                         range_str = raw_num
@@ -91,13 +113,12 @@ def auto_post_live_ranges():
                     else:
                         range_str = raw_num + "XXX"
 
-                    hits_str = f"[{hits} hits]" if hits else ""
                     msg_text_display = f"`{sms_preview}`" if sms_preview else "Live Signal Received ⭐"
 
                     post_text = (
                         f"🔥 **NEXA OTP LIVE CONSOLE** 🔥\n\n"
                         f"📱 **Range:** `{range_str}`\n"
-                        f"🎯 **Service:** {service} {hits_str}\n"
+                        f"🎯 **Service:** {service}\n"
                         f"🌐 **Country:** {country}\n"
                         f"💬 **SMS:** {msg_text_display}\n\n"
                         f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিতে নিচে চাপ দিন:**"
@@ -111,35 +132,29 @@ def auto_post_live_ranges():
                         bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
                         time.sleep(3) # ৩ সেকেন্ড গ্যাপ
                     except telebot.apihelper.ApiTelegramException as te:
-                        if te.error_code == 429: # টেলিগ্রাম লিমিট দিলে
-                            time.sleep(25)
+                        if te.error_code == 429: # রেট লিমিট দিলে
+                            time.sleep(20)
                         else:
                             print(f"Posting error: {te}")
                     except Exception as pe:
                         print(f"Posting error: {pe}")
                         time.sleep(3)
         except Exception as e:
-            print(f"Feed error: {e}")
+            print(f"Main Loop Error: {e}")
         
-        time.sleep(20) # প্রতি ২০ সেকেন্ড পর পর স্ক্যান করবে
+        time.sleep(8) # প্রতি ৮ সেকেন্ড পর পর সাইটের সবকটি ইঞ্জিন স্ক্যান করবে
 
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৪. ম্যানুয়াল টেস্ট কনসোল কমান্ড (/testconsole)
+# ৫. ম্যানুয়াল টেস্ট কনসোল কমান্ড (/testconsole)
 # ----------------------------------------------------
 @bot.message_handler(commands=['testconsole'])
 def test_console_cmd(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "⏳ NexaOTP সাইটের লাইভ কনসোল ডাটা আনা হচ্ছে...")
-    headers = {"X-API-Key": NEXA_API_KEY}
+    bot.send_message(chat_id, "⏳ NexaOTP সাইটের সবকটি ইঞ্জিন স্ক্যান করা হচ্ছে...")
     try:
-        url = "https://nexaotpservice.com/api/v1/console/logs?limit=50"
-        res = requests.get(url, headers=headers, timeout=10).json()
-        
-        logs = []
-        if isinstance(res, list): logs = res
-        elif isinstance(res, dict): logs = res.get("logs") or res.get("data") or res.get("recent") or []
+        logs = fetch_all_site_logs()
         
         if logs and len(logs) > 0:
             first_item = logs[0]
@@ -167,14 +182,14 @@ def test_console_cmd(message):
             markup.add(types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot"))
             
             bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
-            bot.send_message(chat_id, f"🎉 **সফল হয়েছে!**\n\nসাইট থেকে কনসোল ডাটা নিয়ে `{RANGE_GROUP}` চ্যানেলে পাঠানো হয়েছে!", parse_mode="Markdown")
+            bot.send_message(chat_id, f"🎉 **সফল হয়েছে!**\n\nসাইট থেকে ওটিপি ডাটা পেয়ে `{RANGE_GROUP}` চ্যানেলে পোস্ট পাঠানো হয়েছে!", parse_mode="Markdown")
         else:
-            bot.send_message(chat_id, f"⚠️ এপিআই রেসপন্স:\n`{res}`", parse_mode="Markdown")
+            bot.send_message(chat_id, "⚠️ সাইটের কোনো ইঞ্জিনে বর্তমানে ডাটা পাওয়া যায়নি।", parse_mode="Markdown")
     except Exception as e:
         bot.send_message(chat_id, f"❌ এপিআই এরর: {e}")
 
 # ----------------------------------------------------
-# ৫. ওটিপি ফিল্টার ও বটের মূল সার্ভিস
+# ৬. ওটিপি ফিল্টার ও বটের মূল সার্ভিস
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -192,13 +207,7 @@ def fetch_otp(num_id, number):
         pass
 
     try:
-        url2 = "https://nexaotpservice.com/api/v1/console/logs"
-        res2 = requests.get(url2, headers=headers, timeout=5).json()
-        
-        logs = []
-        if isinstance(res2, list): logs = res2
-        elif isinstance(res2, dict): logs = res2.get("logs") or res2.get("data") or res2.get("recent") or []
-        
+        logs = fetch_all_site_logs()
         for item in logs:
             if isinstance(item, dict):
                 if item.get("number") == number or item.get("number_id") == num_id:
@@ -309,7 +318,7 @@ def fetch_and_send_number(chat_id, user_range):
         bot.send_message(chat_id, f"❌ আসল সমস্যা: {e}")
 
 # ----------------------------------------------------
-# ৬. পোলিং চালু রাখা
+# ৭. পোলিং চালু রাখা
 # ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
