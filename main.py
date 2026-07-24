@@ -8,13 +8,16 @@ from flask import Flask
 from telebot import types
 
 # ----------------------------------------------------
-# ১. Render Port Binding এর জন্য ডামি ওয়েব সার্ভার
+# ১. Render Port Binding ও Keep-Alive সার্ভার
 # ----------------------------------------------------
 app = Flask(__name__)
 
+# আপনার Render ওয়েবসাইটের লিংক (এটি রেন্ডারকে অফলাইন হওয়া থেকে বাঁচাবে)
+RENDER_URL = "https://hototp-bot-1.onrender.com"
+
 @app.route('/')
 def home():
-    return "HotOtp Bot & Range Poster Active!", 200
+    return "HotOtp Bot is 24/7 Alive & Running!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -22,8 +25,20 @@ def run_web():
 
 threading.Thread(target=run_web, daemon=True).start()
 
+# অনবরত রেন্ডার সাইটকে জাগিয়ে রাখার পিনগার থ্রেড
+def keep_alive_pinger():
+    while True:
+        time.sleep(300) # প্রতি ৫ মিনিট পর পর নক দেবে
+        try:
+            requests.get(RENDER_URL, timeout=10)
+            print("⚡ Keep-Alive Ping Sent!")
+        except Exception:
+            pass
+
+threading.Thread(target=keep_alive_pinger, daemon=True).start()
+
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও কনফিগারেশন (আপনার আসল লিংকসহ)
+# ২. বটের মূল তথ্য ও কনফিগারেশন
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
@@ -34,7 +49,7 @@ RANGE_GROUP = "@hototprange"             # লাইভ রেঞ্জ চ্�
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# ডাটাবেজ ফাইল (ইউজার ও ব্যালেন্স সেভ রাখার জন্য)
+# ডাটাবেজ ফাইল
 DATA_FILE = "user_data.json"
 
 def load_data():
@@ -55,7 +70,7 @@ db = load_data()
 posted_signatures = set()
 
 print("---------------------------------")
-print("🔥 HotOtp Clean Range Panel Bot Running!")
+print("🔥 HotOtp 24/7 Non-Stop Bot Running!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -169,7 +184,7 @@ def auto_check_otp(chat_id, num_id, number):
             return
 
 # ----------------------------------------------------
-# ৫. মূল ডায়নামিক মেনু
+# ৫. মূল মেনু
 # ----------------------------------------------------
 def main_menu(chat_id):
     chat_str = str(chat_id)
@@ -266,7 +281,7 @@ def add_balance_command(message):
         bot.reply_to(message, "❌ নিয়ম: `/addbalance <User_ID> <টাকার পরিমাণ>`", parse_mode="Markdown")
 
 # ----------------------------------------------------
-# ৭. কলব্যাক হ্যান্ডলার (বাটন একশনস)
+# ৭. কলব্যাক হ্যান্ডলার
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
