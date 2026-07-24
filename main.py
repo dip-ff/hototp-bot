@@ -22,11 +22,12 @@ def run_web():
 threading.Thread(target=run_web, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও চ্যানেলের ইউজারনেম
+# ২. বটের মূল তথ্য ও চ্যানেলের ইউজারনেম (আপনার বটের লিঙ্কসহ)
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
 
+BOT_USERNAME = "hot_opt_bot"              # আপনার আসল বটের ইউজারনেম
 OTP_GROUP = "@hototpotp"                 # ওটিপি আপডেট গ্রুপ
 RANGE_GROUP = "@hototprange"             # আপনার লাইভ রেঞ্জ চ্যানেল
 
@@ -35,7 +36,7 @@ user_ranges = {}
 posted_signatures = set()
 
 print("---------------------------------")
-print("🔥 NexaOTP All-Engine Live Scanner Running!")
+print("🔥 HotOtp Console Auto-Poster Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -45,7 +46,6 @@ def fetch_all_site_logs():
     headers = {"X-API-Key": NEXA_API_KEY}
     all_items = []
     
-    # NexaOTP সাইটের সবকটি ইঞ্জিন এন্ডপয়েন্ট
     endpoints = [
         "https://nexaotpservice.com/api/v1/console/logs?limit=30",
         "https://nexaotpservice.com/api/v1/console/logs/engine2?limit=30",
@@ -92,7 +92,6 @@ def auto_post_live_ranges():
                     if not number or len(number) < 4:
                         continue
 
-                    # অনন্য সিগনেচার (যাতে প্রতিটি নতুন কোড ধরা পড়ে)
                     sig = f"{number}_{service}_{country}_{sms_preview[:15]}_{time_id}"
                     
                     if sig in posted_signatures:
@@ -102,7 +101,6 @@ def auto_post_live_ranges():
                     if len(posted_signatures) > 1500:
                         posted_signatures.clear()
 
-                    # রেঞ্জ ফরম্যাট
                     raw_num = number.replace("+", "").strip()
                     if "XXX" in raw_num:
                         range_str = raw_num
@@ -115,8 +113,9 @@ def auto_post_live_ranges():
 
                     msg_text_display = f"`{sms_preview}`" if sms_preview else "Live Signal Received ⭐"
 
+                    # আপনার নিজস্ব ব্র্যান্ডিং "HOT OTP LIVE CONSOLE"
                     post_text = (
-                        f"🔥 **NEXA OTP LIVE CONSOLE** 🔥\n\n"
+                        f"🔥 **HOT OTP LIVE CONSOLE** 🔥\n\n"
                         f"📱 **Range:** `{range_str}`\n"
                         f"🎯 **Service:** {service}\n"
                         f"🌐 **Country:** {country}\n"
@@ -124,15 +123,16 @@ def auto_post_live_ranges():
                         f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিতে নিচে চাপ দিন:**"
                     )
 
+                    # আপনার বটের লিংকসহ অটোমেটিক ১-ক্লিক বাটন
                     markup = types.InlineKeyboardMarkup()
-                    btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot")
+                    btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ এই নাম্বার নিন", url=f"https://t.me/{BOT_USERNAME}?start={range_str}")
                     markup.add(btn_bot)
 
                     try:
                         bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
                         time.sleep(3) # ৩ সেকেন্ড গ্যাপ
                     except telebot.apihelper.ApiTelegramException as te:
-                        if te.error_code == 429: # রেট লিমিট দিলে
+                        if te.error_code == 429:
                             time.sleep(20)
                         else:
                             print(f"Posting error: {te}")
@@ -142,7 +142,7 @@ def auto_post_live_ranges():
         except Exception as e:
             print(f"Main Loop Error: {e}")
         
-        time.sleep(8) # প্রতি ৮ সেকেন্ড পর পর সাইটের সবকটি ইঞ্জিন স্ক্যান করবে
+        time.sleep(8)
 
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
@@ -171,7 +171,7 @@ def test_console_cmd(message):
             msg_text_display = f"`{sms_preview}`" if sms_preview else "Live Signal Received ⭐"
 
             post_text = (
-                f"🔥 **NEXA OTP LIVE CONSOLE** 🔥\n\n"
+                f"🔥 **HOT OTP LIVE CONSOLE** 🔥\n\n"
                 f"📱 **Range:** `{range_str}`\n"
                 f"🎯 **Service:** {service}\n"
                 f"🌐 **Country:** {country}\n"
@@ -179,7 +179,7 @@ def test_console_cmd(message):
                 f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিন:**"
             )
             markup = types.InlineKeyboardMarkup()
-            markup.add(types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot"))
+            markup.add(types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url=f"https://t.me/{BOT_USERNAME}?start={range_str}"))
             
             bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
             bot.send_message(chat_id, f"🎉 **সফল হয়েছে!**\n\nসাইট থেকে ওটিপি ডাটা পেয়ে `{RANGE_GROUP}` চ্যানেলে পোস্ট পাঠানো হয়েছে!", parse_mode="Markdown")
@@ -249,11 +249,22 @@ def main_menu(chat_id):
     markup.add(btn_range_group, btn_reset)
     return markup
 
+# /start কমান্ড (১-ক্লিক অটোমেটিক রেঞ্জ রিসিভ করার লজিক সহ)
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     chat_id = message.chat.id
-    user_ranges.pop(chat_id, None)
     bot.clear_step_handler_by_chat_id(chat_id)
+    
+    # যদি চ্যানেল থেকে ১-ক্লিকে কোনো রেঞ্জ নিয়ে আসে
+    args = message.text.split()
+    if len(args) > 1:
+        deep_range = args[1].strip()
+        user_ranges[chat_id] = deep_range
+        bot.send_message(chat_id, f"✅ **চ্যানেল থেকে রেঞ্জ সিলেক্ট করা হয়েছে:** `{deep_range}`", parse_mode="Markdown")
+        fetch_and_send_number(chat_id, deep_range)
+        return
+
+    user_ranges.pop(chat_id, None)
     bot.send_message(chat_id, "🔄 **সবকিছু রিসেট করা হয়েছে!**\n\nস্বাগতম! নিচে থেকে প্রয়োজনীয় অপশন বেছে নিন:", reply_markup=main_menu(chat_id), parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: True)
