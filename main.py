@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "HotOtp Site Console Auto-Poster Active!", 200
+    return "HotOtp Bot & Live Range Poster Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -24,7 +24,7 @@ threading.Thread(target=run_web, daemon=True).start()
 # ----------------------------------------------------
 # ২. বটের মূল তথ্য ও আপনার চ্যানেলের ইউজারনেম
 # ----------------------------------------------------
-BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার টেলিগ্রাম বট টোকেন দিন
+BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার টেলিগ্রাম বট টোকেন বসান
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার এপিআই কি
 
 OTP_GROUP = "@hototpotp"                 # ওটিপি আপডেট গ্রুপ
@@ -35,36 +35,27 @@ user_ranges = {}
 posted_sms_ids = set()
 
 print("---------------------------------")
-print("✅ NexaOTP Site Real-Time Auto Poster Active!")
+print("🔥 NexaOTP Console Real-Time Range Poster Running!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. সরাসরি NexaOTP সাইটের কনসোল পেজ থেকে রিয়েল-টাইম রেঞ্জ অটো পোস্ট করা
+# ৩. সরাসরি NexaOTP কনসোল থেকে চ্যানেলে রেঞ্জ পোস্ট করার লুপ
 # ----------------------------------------------------
 def auto_post_live_ranges():
     headers = {"X-API-Key": NEXA_API_KEY}
-    
-    # প্রথমবার চালু হলে আগের ডাটা লোড করে রাখা যাতে নতুন ডাটা আসলে পোস্ট হয়
-    try:
-        url_init = "https://nexaotpservice.com/api/v1/console/logs"
-        res_init = requests.get(url_init, headers=headers, timeout=10).json()
-        if isinstance(res_init, list):
-            for item in res_init[:20]:
-                if isinstance(item, dict):
-                    i_id = str(item.get("number_id") or item.get("id") or item.get("number") or item.get("range") or "")
-                    if i_id:
-                        posted_sms_ids.add(i_id)
-    except Exception:
-        pass
+    first_run = True
 
     while True:
         try:
             url = "https://nexaotpservice.com/api/v1/console/logs"
             res = requests.get(url, headers=headers, timeout=10).json()
             
-            if isinstance(res, list):
-                # নতুন ডাটা খুঁজে বের করা
-                for item in reversed(res[:15]): 
+            if isinstance(res, list) and len(res) > 0:
+                # প্রথমবার চালুর সময় সেরা ৫টি রেঞ্জ সাথে সাথে পোস্ট করবে
+                items_to_process = reversed(res[:5]) if first_run else reversed(res[:12])
+                first_run = False
+
+                for item in items_to_process:
                     if isinstance(item, dict):
                         num_id = str(item.get("number_id") or item.get("id") or item.get("number") or item.get("range") or "")
                         
@@ -77,7 +68,7 @@ def auto_post_live_ranges():
                             hits = item.get("hits") or item.get("count") or ""
                             hits_str = f"[{hits} hits]" if hits else ""
 
-                            # রেঞ্জ ফরমেটিং (যেমন: 236721XXX)
+                            # রেঞ্জ বানানো (যেমন: 236721XXX)
                             raw_num = str(number).replace("+", "").strip()
                             if "XXX" in raw_num:
                                 range_str = raw_num
@@ -101,14 +92,19 @@ def auto_post_live_ranges():
                             btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url="https://t.me/HotOtpBot")
                             markup.add(btn_bot)
 
-                            # সরাসরি @hototprange চ্যানেলে রিয়েল-টাইম রেঞ্জ পোস্ট পাঠানো
-                            bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
-                            time.sleep(2)
+                            # সরাসরি চ্যানেলে পোস্ট
+                            try:
+                                bot.send_message(RANGE_GROUP, post_text, reply_markup=markup, parse_mode="Markdown")
+                            except Exception as pe:
+                                print(f"Posting error: {pe}")
+                                
+                            time.sleep(3) # ৩ সেকেন্ড পরপর পোস্ট করবে
         except Exception as e:
-            print(f"Auto Post Error: {e}")
+            print(f"Fetch error: {e}")
         
-        time.sleep(10) # প্রতি ১০ সেকেন্ড পর পর ওয়েবসাইট স্ক্যান করবে
+        time.sleep(20) # প্রতি ২০ সেকেন্ড পর পর ওয়েবসাইট স্ক্যান করবে
 
+# ব্যাকগ্রাউন্ডে অটো পোস্টিং থ্রেড চালু করা
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
@@ -166,16 +162,12 @@ def main_menu(chat_id):
         btn_range = types.InlineKeyboardButton("⚙️ প্রথমে রেঞ্জ সেট করুন", callback_data="ask_range")
         markup.add(btn_range)
         
-    btn_live = types.InlineKeyboardButton("📊 সাইটের লাইভ রেঞ্জ দেখুন (Console)", callback_data="view_live_console")
-    
     range_link = f"https://t.me/{RANGE_GROUP.replace('@', '')}"
-    otp_link = f"https://t.me/{OTP_GROUP.replace('@', '')}"
     
-    btn_range_group = types.InlineKeyboardButton("📱 লাইভ রেঞ্জ গ্রুপ", url=range_link)
-    btn_otp_group = types.InlineKeyboardButton("📩 ওটিপি আপডেট গ্রুপ", url=otp_link)
+    btn_range_group = types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেল (@hototprange)", url=range_link)
     btn_reset = types.InlineKeyboardButton("🔄 সবকিছু রিসেট করুন", callback_data="reset_all")
     
-    markup.add(btn_live, btn_range_group, btn_otp_group, btn_reset)
+    markup.add(btn_range_group, btn_reset)
     return markup
 
 @bot.message_handler(commands=['start'])
@@ -207,55 +199,6 @@ def callback_inline(call):
             msg = bot.send_message(chat_id, "আপনার কোনো রেঞ্জ সেট করা নেই। রেঞ্জ টাইপ করুন:")
             bot.register_next_step_handler(msg, process_save_range)
 
-    elif call.data == "view_live_console":
-        bot.send_message(chat_id, "⏳ NexaOTP Console থেকে সরাসরি সাইটের রানিং রেঞ্জগুলো আনা হচ্ছে...")
-        headers = {"X-API-Key": NEXA_API_KEY}
-        try:
-            url = "https://nexaotpservice.com/api/v1/console/logs"
-            res = requests.get(url, headers=headers, timeout=10).json()
-            
-            if isinstance(res, list) and len(res) > 0:
-                report_lines = ["📊 **NexaOTP Site Live Console Hits** 📊\n"]
-                seen_ranges = set()
-                count = 0
-                
-                for item in res:
-                    if isinstance(item, dict) and count < 8:
-                        num = item.get("number") or item.get("range") or ""
-                        raw_num = str(num).replace("+", "").strip()
-                        if "XXX" in raw_num:
-                            r_str = raw_num
-                        elif len(raw_num) > 8:
-                            r_str = raw_num[:8] + "XXX"
-                        elif len(raw_num) > 5:
-                            r_str = raw_num[:5] + "XXX"
-                        else:
-                            r_str = raw_num + "XXX"
-                            
-                        if r_str in seen_ranges:
-                            continue
-                        seen_ranges.add(r_str)
-                        count += 1
-                        
-                        country = item.get("country", "Unknown")
-                        service = item.get("service", "OTP")
-                        hits = item.get("hits") or ""
-                        hits_str = f"[{hits} hits]" if hits else ""
-                        
-                        report_lines.append(f"• **Range:** `{r_str}`\n  🌐 Country: {country} | 🎯 Service: {service} {hits_str}\n")
-                
-                report_text = "\n".join(report_lines) + "\n💡 _রেঞ্জের ওপর চাপ দিলে কপি হয়ে যাবে!_"
-                markup = types.InlineKeyboardMarkup()
-                markup.add(
-                    types.InlineKeyboardButton("📱 রেঞ্জ সেট করুন", callback_data="ask_range"),
-                    types.InlineKeyboardButton("📱 লাইভ রেঞ্জ গ্রুপে যান", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
-                )
-                bot.send_message(chat_id, report_text, reply_markup=markup, parse_mode="Markdown")
-            else:
-                bot.send_message(chat_id, "বর্তমানে কোনো লাইভ রেঞ্জ ডাটা পাওয়া যায়নি।")
-        except Exception:
-            bot.send_message(chat_id, "লাইভ কনসোল ডাটা নিতে সমস্যা হয়েছে।")
-
     elif call.data.startswith("check_otp_"):
         parts = call.data.replace("check_otp_", "").split("|")
         otp = fetch_otp(parts[0], parts[1] if len(parts) > 1 else "")
@@ -283,7 +226,7 @@ def fetch_and_send_number(chat_id, user_range):
             
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
-                types.InlineKeyboardButton("📱 লাইভ রেঞ্জ গ্রুপে যান", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}"),
+                types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেল", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}"),
                 types.InlineKeyboardButton("📱 একই রেঞ্জ থেকে আরেকটি নাম্বার নিন", callback_data="get_num_auto"),
                 types.InlineKeyboardButton("⚙️ রেঞ্জ চেঞ্জ করুন", callback_data="ask_range"),
                 types.InlineKeyboardButton("🔄 সবকিছু রিসেট করুন", callback_data="reset_all")
@@ -295,6 +238,9 @@ def fetch_and_send_number(chat_id, user_range):
     except Exception as e:
         bot.send_message(chat_id, f"❌ আসল সমস্যা: {e}")
 
+# ----------------------------------------------------
+# ৫. পোলিং চালু রাখা
+# ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
 except Exception as e:
