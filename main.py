@@ -13,7 +13,7 @@ from telebot import types
 app = Flask(__name__)
 
 # আপনার Render ওয়েবসাইটের লিংক (এটি রেন্ডারকে অফলাইন হওয়া থেকে বাঁচাবে)
-RENDER_URL = "https://hototp-bot-1.onrender.com"
+RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
