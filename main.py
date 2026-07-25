@@ -38,7 +38,7 @@ BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার 
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
 
 # ⚠️ এখানে /myid লিখে পাওয়া আপনার টেলিগ্রাম আইডি বসিয়ে দিন (যেমন: 123456789)
-ADMIN_ID = None  
+ADMIN_ID = 7418898985  
 
 BOT_USERNAME = "hot_opt_bot"              # বটের ইউজারনেম
 
