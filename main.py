@@ -63,6 +63,13 @@ def save_data():
 db = load_data()
 posted_signatures = set()
 
+# কিবোর্ড বাটনের লিস্ট (যাতে ভুল করে রেঞ্জ হিসেবে সেভ না হয়)
+MENU_BUTTONS = [
+    "☎️ Get Number", "⚙️ Change Range", "📱 Range Group", 
+    "✉️ Get Tempmail", "🔐 2FA", "👤 Fake Name", "🔽 OTHER", 
+    "💰 Balances", "💸 Withdraw", "💬 Support", "🏠 Home"
+]
+
 # ----------------------------------------------------
 # ৩. টেলিগ্রাম পপ-আপ মেনু কমান্ডস
 # ----------------------------------------------------
@@ -85,7 +92,7 @@ except Exception as e:
     print(f"Commands set error: {e}")
 
 # ----------------------------------------------------
-# ৪. স্থায়ী নিচের কিবোর্ড বাটন (Change Range ও Range Group সহ)
+# ৪. স্থায়ী নিচের কিবোর্ড বাটন
 # ----------------------------------------------------
 def bottom_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -102,7 +109,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Complete Panel Active!")
+print("🔥 HotOtp Smart Handler Bot Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -327,14 +334,32 @@ def callback_inline(call):
         if otp: bot.send_message(chat_id, f"📩 {otp}", parse_mode="Markdown")
         else: bot.answer_callback_query(call.id, text="এখনো ওটিপি আসেনি! ২-৩ সেকেন্ড পর আবার চাপুন...", show_alert=True)
 
+# স্মার্ট রেঞ্জ সেভার (বাটন ফিল্টার সহ)
 def process_save_range(message):
     chat_id = message.chat.id
     chat_str = str(chat_id)
-    new_range = message.text.strip()
-    db["ranges"][chat_str] = new_range
+    text = message.text.strip()
+    
+    # যদি ইউজার রেঞ্জ না লিখে অন্য কোনো কিবোর্ড বাটন চেপে দেয় বা কমান্ড দেয়
+    if text in MENU_BUTTONS or text.startswith("/"):
+        bot.clear_step_handler_by_chat_id(chat_id)
+        if text == "📱 Range Group": range_group_handler(message)
+        elif text == "☎️ Get Number": get_number_handler(message)
+        elif text == "⚙️ Change Range": change_range_handler(message)
+        elif text == "🔽 OTHER": other_handler(message)
+        elif text == "🏠 Home": home_handler(message)
+        elif text == "💰 Balances": balances_handler(message)
+        elif text == "💬 Support": support_handler(message)
+        elif text == "✉️ Get Tempmail": tempmail_handler(message)
+        elif text == "🔐 2FA": twofa_handler(message)
+        elif text == "👤 Fake Name": fakename_handler(message)
+        return
+
+    # যদি আসল রেঞ্জ বসানো হয়
+    db["ranges"][chat_str] = text
     save_data()
-    bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{new_range}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
-    fetch_and_send_number(chat_id, new_range)
+    bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{text}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
+    fetch_and_send_number(chat_id, text)
 
 def fetch_and_send_number(chat_id, user_range):
     bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
