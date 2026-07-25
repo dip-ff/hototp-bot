@@ -11,13 +11,11 @@ from telebot import types
 # ১. Render Port Binding ও Keep-Alive সার্ভার
 # ----------------------------------------------------
 app = Flask(__name__)
-
-# আপনার Render ওয়েবসাইটের লিংক (এটি রেন্ডারকে অফলাইন হওয়া থেকে বাঁচাবে)
 RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Bot is 24/7 Alive & Running!", 200
+    return "HotOtp GetPaid Style Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -25,15 +23,11 @@ def run_web():
 
 threading.Thread(target=run_web, daemon=True).start()
 
-# অনবরত রেন্ডার সাইটকে জাগিয়ে রাখার পিনগার থ্রেড
 def keep_alive_pinger():
     while True:
-        time.sleep(300) # প্রতি ৫ মিনিট পর পর নক দেবে
-        try:
-            requests.get(RENDER_URL, timeout=10)
-            print("⚡ Keep-Alive Ping Sent!")
-        except Exception:
-            pass
+        time.sleep(300)
+        try: requests.get(RENDER_URL, timeout=10)
+        except: pass
 
 threading.Thread(target=keep_alive_pinger, daemon=True).start()
 
@@ -69,12 +63,48 @@ def save_data():
 db = load_data()
 posted_signatures = set()
 
+# ----------------------------------------------------
+# ৩. টেলিগ্রাম পপ-আপ মেনু কমান্ডস (স্ক্রিনশট ২ এর মতো)
+# ----------------------------------------------------
+try:
+    bot_commands = [
+        types.BotCommand("start", "🚀 Start"),
+        types.BotCommand("home", "🏠 Home"),
+        types.BotCommand("number", "☎️ Get Number"),
+        types.BotCommand("tempmail", "✉️ Get Tempmail"),
+        types.BotCommand("twofa", "🔐 2FA"),
+        types.BotCommand("balances", "💰 Balances"),
+        types.BotCommand("withdraw", "💸 Withdraw"),
+        types.BotCommand("history", "📜 Withdraw History"),
+        types.BotCommand("help", "💬 Support"),
+        types.BotCommand("other", "🔽 OTHER")
+    ]
+    bot.set_my_commands(bot_commands)
+except Exception as e:
+    print(f"Commands set error: {e}")
+
+# ----------------------------------------------------
+# ৪. স্থায়ী নিচের কিবোর্ড বাটন (স্ক্রিনশট ১ ও ৩ এর মতো)
+# ----------------------------------------------------
+def bottom_main_keyboard():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    markup.add(types.KeyboardButton("☎️ Get Number"), types.KeyboardButton("✉️ Get Tempmail"))
+    markup.add(types.KeyboardButton("🔐 2FA"), types.KeyboardButton("👤 Fake Name"))
+    markup.add(types.KeyboardButton("🔽 OTHER"))
+    return markup
+
+def bottom_other_keyboard():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    markup.add(types.KeyboardButton("💰 Balances"), types.KeyboardButton("💸 Withdraw"))
+    markup.add(types.KeyboardButton("💬 Support"), types.KeyboardButton("🏠 Home"))
+    return markup
+
 print("---------------------------------")
-print("🔥 HotOtp 24/7 Non-Stop Bot Running!")
+print("🔥 HotOtp GetPaid Style Panel Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৩. সাইটের কনসোল লাইভ অটো-পোস্টার
+# ৫. সাইটের কনসোল লাইভ অটো-পোস্টার
 # ----------------------------------------------------
 def fetch_all_site_logs():
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -147,7 +177,7 @@ def auto_post_live_ranges():
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৪. ওটিপি ফিল্টার
+# ৬. ওটিপি ফিল্টার
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -184,31 +214,7 @@ def auto_check_otp(chat_id, num_id, number):
             return
 
 # ----------------------------------------------------
-# ৫. মূল মেনু
-# ----------------------------------------------------
-def main_menu(chat_id):
-    chat_str = str(chat_id)
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    
-    saved_r = db["ranges"].get(chat_str)
-
-    if saved_r:
-        btn_num = types.InlineKeyboardButton(f"📱 নতুন নাম্বার নিন ({saved_r})", callback_data="get_num_auto")
-        btn_range = types.InlineKeyboardButton("⚙️ রেঞ্জ চেঞ্জ করুন", callback_data="ask_range")
-        markup.add(btn_num, btn_range)
-    else:
-        btn_range = types.InlineKeyboardButton("⚙️ প্রথমে রেঞ্জ সেট করুন", callback_data="ask_range")
-        markup.add(btn_range)
-
-    btn_wallet = types.InlineKeyboardButton("💳 আমার ওয়ালেট & রিচার্জ", callback_data="view_wallet")
-    btn_channel = types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেল (@hototprange)", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
-    btn_reset = types.InlineKeyboardButton("🔄 সবকিছু রিসেট করুন", callback_data="reset_all")
-
-    markup.add(btn_wallet, btn_channel, btn_reset)
-    return markup
-
-# ----------------------------------------------------
-# ৬. বট কমান্ডস
+# ৭. বট মেসেজ হ্যান্ডলারস (কিবোর্ড বাটন রিপ্লাই)
 # ----------------------------------------------------
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -226,62 +232,57 @@ def send_welcome(message):
         deep_range = args[1].strip()
         db["ranges"][chat_str] = deep_range
         save_data()
-        bot.send_message(chat_id, f"✅ **চ্যানেল থেকে রেঞ্জ সিলেক্ট হয়েছে:** `{deep_range}`", parse_mode="Markdown")
+        bot.send_message(chat_id, f"✅ **চ্যানেল থেকে রেঞ্জ সিলেক্ট হয়েছে:** `{deep_range}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
         fetch_and_send_number(chat_id, deep_range)
         return
 
     db["ranges"].pop(chat_str, None)
     save_data()
-    bot.send_message(chat_id, "🔥 **HotOtp Bot**-এ স্বাগতম!\n\nনিচে থেকে আপনার প্রয়োজনীয় অপশন বেছে নিন:", reply_markup=main_menu(chat_id), parse_mode="Markdown")
+    bot.send_message(chat_id, "👋 **Welcome back to HotOtp Bot**", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
 
-@bot.message_handler(commands=['myid'])
-def my_id_command(message):
-    bot.reply_to(message, f"🆔 আপনার টেলিগ্রাম আইডি: `{message.chat.id}`", parse_mode="Markdown")
+@bot.message_handler(func=lambda m: m.text == "☎️ Get Number" or m.text == "/number")
+def get_number_handler(message):
+    chat_id = message.chat.id
+    chat_str = str(chat_id)
+    saved_r = db["ranges"].get(chat_str)
+    if saved_r:
+        fetch_and_send_number(chat_id, saved_r)
+    else:
+        msg = bot.send_message(chat_id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: `224671808XXX`):", parse_mode="Markdown")
+        bot.register_next_step_handler(msg, process_save_range)
 
-@bot.message_handler(commands=['stats'])
-def stats_command(message):
-    total_users = len(db["users"])
-    total_otps = db.get("total_otps", 0)
-    msg = f"📊 **HotOtp Bot Statistics** 📊\n\n👥 মোট রেজিস্টার্ড ইউজার: `{total_users}` জন\n📩 মোট ওটিপি ডেলিভারি: `{total_otps}` টি\n⚡ স্টেটাস: ১০০% অ্যাক্টিভ (Render Cloud)"
-    bot.reply_to(message, msg, parse_mode="Markdown")
+@bot.message_handler(func=lambda m: m.text == "🔽 OTHER" or m.text == "/other")
+def other_handler(message):
+    bot.send_message(message.chat.id, "📋 **OTHER OPTIONS**\n\nনিচের অপশন থেকে সিলেক্ট করুন:", reply_markup=bottom_other_keyboard(), parse_mode="Markdown")
 
-@bot.message_handler(commands=['broadcast'])
-def broadcast_command(message):
-    text = message.text.replace('/broadcast', '').strip()
-    if not text:
-        bot.reply_to(message, "❌ ব্যবহারের নিয়ম: `/broadcast আপনার মেসেজ টাইপ করুন`", parse_mode="Markdown")
-        return
+@bot.message_handler(func=lambda m: m.text == "🏠 Home" or m.text == "/home")
+def home_handler(message):
+    bot.send_message(message.chat.id, "👋 **Welcome to HotOtp Bot**", reply_markup=bottom_main_keyboard())
 
-    success_count = 0
-    bot.reply_to(message, "⏳ সব ইউজারের কাছে মেসেজ পাঠানো হচ্ছে...")
-    for user_id in db["users"]:
-        try:
-            bot.send_message(user_id, f"📢 **ADMIN ANNOUNCEMENT** 📢\n\n{text}", parse_mode="Markdown")
-            success_count += 1
-            time.sleep(0.1)
-        except: pass
-    
-    bot.send_message(message.chat.id, f"✅ ব্রডকাস্ট সম্পন্ন হয়েছে!\nমোট `{success_count}` জনের কাছে সফলভাবে পাঠানো হয়েছে।", parse_mode="Markdown")
+@bot.message_handler(func=lambda m: m.text == "💰 Balances" or m.text == "/balances")
+def balances_handler(message):
+    chat_str = str(message.chat.id)
+    bal = db["balances"].get(chat_str, 20.0)
+    bot.send_message(message.chat.id, f"💳 **আপনার বর্তমান ব্যালেন্স:** `{bal}` TK\n\nরিচার্জ করতে এডমিনের সাথে যোগাযোগ করুন: @hototpotp", parse_mode="Markdown")
 
-@bot.message_handler(commands=['addbalance'])
-def add_balance_command(message):
-    try:
-        parts = message.text.split()
-        target_id = parts[1]
-        amount = float(parts[2])
-        
-        current_bal = db["balances"].get(target_id, 0.0)
-        db["balances"][target_id] = current_bal + amount
-        save_data()
-        
-        bot.reply_to(message, f"✅ ইউজার `{target_id}` কে `{amount}` টাকা এড করা হয়েছে। বর্তমান ব্যালেন্স: `{db['balances'][target_id]}` টাকা", parse_mode="Markdown")
-        try: bot.send_message(int(target_id), f"🎉 আপনার ওয়ালেটে `{amount}` টাকা জমা হয়েছে! বর্তমান ব্যালেন্স: `{db['balances'][target_id]}` টাকা", parse_mode="Markdown")
-        except: pass
-    except:
-        bot.reply_to(message, "❌ নিয়ম: `/addbalance <User_ID> <টাকার পরিমাণ>`", parse_mode="Markdown")
+@bot.message_handler(func=lambda m: m.text == "💬 Support" or m.text == "/help")
+def support_handler(message):
+    bot.send_message(message.chat.id, "💬 **সহায়তার জন্য এডমিন চ্যাট:** @hototpotp", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "✉️ Get Tempmail" or m.text == "/tempmail")
+def tempmail_handler(message):
+    bot.send_message(message.chat.id, "✉️ **Tempmail Feature:** শীঘ্রই আসছে!", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "🔐 2FA" or m.text == "/twofa")
+def twofa_handler(message):
+    bot.send_message(message.chat.id, "🔐 **2FA Code Generator:** শীঘ্রই আসছে!", parse_mode="Markdown")
+
+@bot.message_handler(func=lambda m: m.text == "👤 Fake Name")
+def fakename_handler(message):
+    bot.send_message(message.chat.id, "👤 **Fake Name Generator:** John Doe", parse_mode="Markdown")
 
 # ----------------------------------------------------
-# ৭. কলব্যাক হ্যান্ডলার
+# ৮. কলব্যাক হ্যান্ডলার (ইনলাইন বাটন)
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
@@ -294,7 +295,7 @@ def callback_inline(call):
         db["ranges"].pop(chat_str, None)
         save_data()
         bot.clear_step_handler_by_chat_id(chat_id)
-        bot.send_message(chat_id, "🔄 **সবকিছু রিসেট করা হয়েছে!**", reply_markup=main_menu(chat_id), parse_mode="Markdown")
+        bot.send_message(chat_id, "🔄 **সবকিছু রিসেট করা হয়েছে!**", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
         
     elif call.data == "ask_range":
         msg = bot.send_message(chat_id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: `224671808XXX`):", parse_mode="Markdown")
@@ -307,26 +308,11 @@ def callback_inline(call):
             msg = bot.send_message(chat_id, "আপনার কোনো রেঞ্জ সেট করা নেই। রেঞ্জ টাইপ করুন:")
             bot.register_next_step_handler(msg, process_save_range)
 
-    elif call.data == "view_wallet":
-        bal = db["balances"].get(chat_str, 0.0)
-        text = (
-            f"💳 **আপনার ওয়ালেট বিবরণী** 💳\n\n"
-            f"🆔 ইউজার আইডি: `{chat_id}`\n"
-            f"💰 বর্তমান ব্যালেন্স: `{bal}` টাকা\n\n"
-            f"📌 **টাকা রিচার্জের নিয়ম:**\n"
-            f"বিকাশ/নগদ এর মাধ্যমে টাকা ডিপোজিট করতে এডমিনের সাথে যোগাযোগ করুন।"
-        )
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("💬 এডমিনের সাথে কথা বলুন", url="https://t.me/hototpotp"))
-        bot.send_message(chat_id, text, reply_markup=markup, parse_mode="Markdown")
-
-    elif call.data.startswith("cancel_num_"):
-        bot.send_message(chat_id, "❌ **নাম্বার ক্যানসেল করা হয়েছে!**\nনতুন নাম্বার নিতে 'নতুন নাম্বার নিন' চাপুন।", reply_markup=main_menu(chat_id), parse_mode="Markdown")
-
     elif call.data.startswith("check_otp_"):
         parts = call.data.replace("check_otp_", "").split("|")
         otp = fetch_otp(parts[0], parts[1] if len(parts) > 1 else "")
         if otp: bot.send_message(chat_id, f"📩 {otp}", parse_mode="Markdown")
+        else: bot.answer_callback_query(call.id, text="এখনো ওটিপি আসেনি! ২-৩ সেকেন্ড পর আবার চাপুন...", show_alert=True)
 
 def process_save_range(message):
     chat_id = message.chat.id
@@ -337,6 +323,7 @@ def process_save_range(message):
     bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{new_range}`", parse_mode="Markdown")
     fetch_and_send_number(chat_id, new_range)
 
+# গেটপেইড ৩ নম্বর প্রফেশনাল কার্ড লেআউট
 def fetch_and_send_number(chat_id, user_range):
     bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
     
@@ -347,34 +334,36 @@ def fetch_and_send_number(chat_id, user_range):
     try:
         res = requests.post(url, headers=headers, json=payload, timeout=10).json()
         if res.get("success"):
-            country = res.get("country", "Unknown")
+            country = res.get("country", "Global")
             number = res.get("number", "N/A")
             num_id = res.get("number_id", "")
+            raw_num = str(number).replace("+", "").strip()
+
+            msg_text = f"✅ **Number:** 🌐 {country} (0.20TK)"
             
-            msg_text = (
-                f"🌐 **Country:** {country}\n"
-                f"🎯 **Active Range:** `{user_range}`\n"
-                f"💎 **Status:** Waiting for OTP ⭐\n\n"
-                f"👇 **নাম্বারটির ওপর চাপ দিলে কপি হবে:**\n`{number}`"
-            )
+            markup = types.InlineKeyboardMarkup(row_width=2)
             
-            markup = types.InlineKeyboardMarkup(row_width=1)
-            markup.add(
-                types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেল", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}"),
-                types.InlineKeyboardButton("📱 একই রেঞ্জ থেকে আরেকটি নাম্বার নিন", callback_data="get_num_auto"),
-                types.InlineKeyboardButton("❌ এই নাম্বার বাতিল করুন (Cancel)", callback_data=f"cancel_num_{num_id}"),
-                types.InlineKeyboardButton("⚙️ রেঞ্জ চেঞ্জ করুন", callback_data="ask_range"),
-                types.InlineKeyboardButton("🔄 সবকিছু রিসেট করুন", callback_data="reset_all")
-            )
+            # ১-টাচ কপি বাটন (১ম ও ৩য় স্ক্রিনশটের মতো)
+            btn_num1 = types.InlineKeyboardButton(f"📋 📱 {raw_num}", callback_data="copy_ignore")
+            btn_otp_group = types.InlineKeyboardButton("🔔 OTP GROUP", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
+            btn_change = types.InlineKeyboardButton("🔄 Change Number", callback_data="ask_range")
+            btn_refresh = types.InlineKeyboardButton("🔄 Refresh", callback_data=f"check_otp_{num_id}|{number}")
+            btn_back = types.InlineKeyboardButton("⬅️ Back", callback_data="reset_all")
+
+            markup.add(btn_num1)
+            markup.add(btn_otp_group)
+            markup.add(btn_change, btn_refresh)
+            markup.add(btn_back)
+            
             bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
             threading.Thread(target=auto_check_otp, args=(chat_id, num_id, number), daemon=True).start()
         else:
-            bot.send_message(chat_id, f"❌ সমস্যা: {res.get('error')}", reply_markup=main_menu(chat_id))
+            bot.send_message(chat_id, f"❌ সমস্যা: {res.get('error')}", reply_markup=bottom_main_keyboard())
     except Exception as e:
         bot.send_message(chat_id, f"❌ আসল সমস্যা: {e}")
 
 # ----------------------------------------------------
-# ৮. পোলিং চালু রাখা
+# ৯. পোলিং চালু রাখা
 # ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
