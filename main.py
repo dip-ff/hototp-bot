@@ -15,7 +15,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Group Forwarder Active!", 200
+    return "HotOtp Number Masked Security Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -70,6 +70,15 @@ def save_data():
     except: pass
 
 db = load_data()
+
+# মাঝের ৪-৫ ডিজিট হাইড/মাস্ক করার সিকিউরিটি ফাংশন (যেমন: 23672****822)
+def mask_phone_number(number_str):
+    clean = str(number_str).replace("+", "").strip()
+    if len(clean) >= 10:
+        return clean[:5] + "****" + clean[-3:]
+    elif len(clean) >= 7:
+        return clean[:3] + "***" + clean[-2:]
+    return clean
 
 def is_admin(chat_id):
     if ADMIN_ID is None: return True
@@ -127,7 +136,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp OTP Group Forwarder Active!")
+print("🔥 HotOtp Number Masked Security Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -205,7 +214,7 @@ def auto_post_live_ranges():
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৬. ওটিপি ফিল্টার ও গ্রুপে অটো ফরোয়ার্ড সিস্টেম
+# ৬. ওটিপি ফিল্টার ও গ্রুপে নাম্বার হাইড করে অটো ফরোয়ার্ড
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -231,7 +240,6 @@ def fetch_otp(num_id, number):
     except Exception: pass
     return None
 
-# ওটিপি পাওয়ার সাথে সাথে ইউজার এবং ওটিপি গ্রুপে একসাথে মেসেজ পাঠানো
 def auto_check_otp(chat_id, num_id, number):
     for _ in range(60):
         time.sleep(3)
@@ -240,17 +248,18 @@ def auto_check_otp(chat_id, num_id, number):
             db["total_otps"] = db.get("total_otps", 0) + 1
             save_data()
             
-            # ১. প্রাইভেট চ্যাটে ইউজারকে ওটিপি পাঠানো
+            # ১. প্রাইভেট চ্যাটে ইউজারকে আসল সম্পূর্ণ নাম্বারসহ ওটিপি পাঠানো
             bot.send_message(chat_id, f"🎉 <b>ওটিপি চলে এসেছে!</b>\n\n{otp}", parse_mode="HTML")
             
-            # ২. একই সাথে আপনার @hototpotp গ্রুপে অটো ফরোয়ার্ড করা
+            # ২. পাবলিক ওটিপি গ্রুপে নাম্বার মাস্ক/হাইড করে (23672****822) পাঠানো
             try:
                 otp_grp = get_setting("otp_group", "@hototpotp")
                 raw_num = str(number).replace("+", "").strip()
+                masked_num = mask_phone_number(raw_num) # মাঝের ডিজিট হাইড
                 
                 group_post = (
                     f"🎉 <b>NEW OTP SUCCESS HIT</b> 🎉\n\n"
-                    f"📱 <b>Number:</b> <code>{raw_num}</code>\n"
+                    f"📱 <b>Number:</b> <code>{masked_num}</code>\n"
                     f"{otp}\n\n"
                     f"⚡ <b>Status:</b> Delivered via HotOtp Bot ⭐"
                 )
@@ -494,7 +503,7 @@ def process_save_range(message):
     bot.send_message(chat_id, f"✅ <b>রেঞ্জ সেভ হয়েছে:</b> <code>{text}</code>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
     fetch_and_send_number(chat_id, text)
 
-# নাম্বার ফানেল
+# নাম্বার সার্ভিস
 def fetch_and_send_number(chat_id, user_range, message_id=None):
     if not message_id:
         bot.send_message(chat_id, f"⏳ <code>{user_range}</code> রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="HTML")
