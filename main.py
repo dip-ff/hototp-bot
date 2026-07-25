@@ -70,7 +70,8 @@ db = load_data()
 
 def get_setting(key, default_val):
     try:
-        return db.get("settings", {}).get(key, default_val)
+        val = db.get("settings", {}).get(key)
+        return val if val else default_val
     except:
         return default_val
 
@@ -119,7 +120,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Fixed & Active!")
+print("🔥 HotOtp HTML Safe Bot Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -170,15 +171,15 @@ def auto_post_live_ranges():
                     elif len(raw_num) > 5: range_str = raw_num[:5] + "XXX"
                     else: range_str = raw_num + "XXX"
 
-                    msg_text_display = f"`{sms_preview}`" if sms_preview else "Live Signal Received ⭐"
+                    msg_text_display = f"<code>{sms_preview}</code>" if sms_preview else "Live Signal Received ⭐"
 
                     post_text = (
-                        f"🔥 **HOT OTP LIVE CONSOLE** 🔥\n\n"
-                        f"📱 **Range:** `{range_str}`\n"
-                        f"🎯 **Service:** {service}\n"
-                        f"🌐 **Country:** {country}\n"
-                        f"💬 **SMS:** {msg_text_display}\n\n"
-                        f"👇 **১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিতে নিচে চাপ দিন:**"
+                        f"🔥 <b>HOT OTP LIVE CONSOLE</b> 🔥\n\n"
+                        f"📱 <b>Range:</b> <code>{range_str}</code>\n"
+                        f"🎯 <b>Service:</b> {service}\n"
+                        f"🌐 <b>Country:</b> {country}\n"
+                        f"💬 <b>SMS:</b> {msg_text_display}\n\n"
+                        f"👇 <b>১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিতে নিচে চাপ দিন:</b>"
                     )
 
                     markup = types.InlineKeyboardMarkup()
@@ -186,7 +187,7 @@ def auto_post_live_ranges():
                     markup.add(btn_bot)
 
                     try:
-                        bot.send_message(range_group, post_text, reply_markup=markup, parse_mode="Markdown")
+                        bot.send_message(range_group, post_text, reply_markup=markup, parse_mode="HTML")
                         time.sleep(3)
                     except telebot.apihelper.ApiTelegramException as te:
                         if te.error_code == 429: time.sleep(20)
@@ -207,8 +208,8 @@ def fetch_otp(num_id, number):
         if res1.get("success"):
             code = res1.get("code") or res1.get("otp") or res1.get("sms_code")
             sms = res1.get("sms") or res1.get("message") or res1.get("text") or ""
-            if code and "******" not in str(code): return f"🔢 **OTP Code:** `{code}`\n\n📩 **Full SMS:** `{sms}`"
-            if sms and "******" not in str(sms): return f"📩 **SMS:** `{sms}`"
+            if code and "******" not in str(code): return f"🔢 <b>OTP Code:</b> <code>{code}</code>\n\n📩 <b>Full SMS:</b> <code>{sms}</code>"
+            if sms and "******" not in str(sms): return f"📩 <b>SMS:</b> <code>{sms}</code>"
     except Exception: pass
 
     try:
@@ -218,8 +219,8 @@ def fetch_otp(num_id, number):
                 if item.get("number") == number or item.get("number_id") == num_id:
                     sms = item.get("sms") or item.get("text") or item.get("message") or ""
                     code = item.get("code") or item.get("otp") or ""
-                    if code and "******" not in str(code): return f"🔢 **OTP Code:** `{code}`\n\n📩 **SMS:** `{sms}`"
-                    if sms and "******" not in str(sms): return f"📩 **SMS:** `{sms}`"
+                    if code and "******" not in str(code): return f"🔢 <b>OTP Code:</b> <code>{code}</code>\n\n📩 <b>SMS:</b> <code>{sms}</code>"
+                    if sms and "******" not in str(sms): return f"📩 <b>SMS:</b> <code>{sms}</code>"
     except Exception: pass
     return None
 
@@ -230,7 +231,7 @@ def auto_check_otp(chat_id, num_id, number):
         if otp:
             db["total_otps"] = db.get("total_otps", 0) + 1
             save_data()
-            bot.send_message(chat_id, f"🎉 **ওটিপি চলে এসেছে!**\n\n{otp}", parse_mode="Markdown")
+            bot.send_message(chat_id, f"🎉 <b>ওটিপি চলে এসেছে!</b>\n\n{otp}", parse_mode="HTML")
             return
 
 # ----------------------------------------------------
@@ -251,13 +252,13 @@ def send_welcome(message):
         deep_range = args[1].strip()
         db["ranges"][chat_str] = deep_range
         save_data()
-        bot.send_message(chat_id, f"✅ **চ্যানেল থেকে রেঞ্জ সিলেক্ট হয়েছে:** `{deep_range}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
+        bot.send_message(chat_id, f"✅ <b>চ্যানেল থেকে রেঞ্জ সিলেক্ট হয়েছে:</b> <code>{deep_range}</code>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
         fetch_and_send_number(chat_id, deep_range)
         return
 
     db["ranges"].pop(chat_str, None)
     save_data()
-    bot.send_message(chat_id, "👋 **Welcome back to HotOtp Bot**", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
+    bot.send_message(chat_id, "👋 <b>Welcome back to HotOtp Bot</b>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
 
 @bot.message_handler(commands=['admin'])
 def admin_panel_cmd(message):
@@ -266,16 +267,16 @@ def admin_panel_cmd(message):
     otp = get_setting("otp_group", "@hototpotp")
     
     msg = (
-        "⚙️ **HOT OTP ADMIN PANEL** ⚙️\n\n"
-        f"💬 **Current Support:** `{supp}`\n"
-        f"📱 **Range Channel:** `{rng}`\n"
-        f"🔔 **OTP Group:** `{otp}`\n\n"
-        "📌 **বটের ভেতরে সেটিংস পরিবর্তন করার নিয়ম:**\n"
-        "• সাপোর্ট আইডি বদলাতে: `/setsupport @username`\n"
-        "• রেঞ্জ চ্যানেল বদলাতে: `/setrange @channel`\n"
-        "• ওটিপি গ্রুপ বদলাতে: `/setgroup @group`"
+        "⚙️ <b>HOT OTP ADMIN PANEL</b> ⚙️\n\n"
+        f"💬 <b>Current Support:</b> <code>{supp}</code>\n"
+        f"📱 <b>Range Channel:</b> <code>{rng}</code>\n"
+        f"🔔 <b>OTP Group:</b> <code>{otp}</code>\n\n"
+        "📌 <b>বটের ভেতরে সেটিংস পরিবর্তন করার নিয়ম:</b>\n"
+        "• সাপোর্ট আইডি বদলাতে: <code>/setsupport @username</code>\n"
+        "• রেঞ্জ চ্যানেল বদলাতে: <code>/setrange @channel</code>\n"
+        "• ওটিপি গ্রুপ বদলাতে: <code>/setgroup @group</code>"
     )
-    bot.reply_to(message, msg, parse_mode="Markdown")
+    bot.reply_to(message, msg, parse_mode="HTML")
 
 @bot.message_handler(commands=['setsupport'])
 def set_support_cmd(message):
@@ -284,9 +285,9 @@ def set_support_cmd(message):
         if not text.startswith('@'): text = '@' + text
         db["settings"]["support"] = text
         save_data()
-        bot.reply_to(message, f"✅ সাপোর্ট ইউজারনেম সেট হয়েছে: `{text}`", parse_mode="Markdown")
+        bot.reply_to(message, f"✅ সাপোর্ট ইউজারনেম সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
     else:
-        bot.reply_to(message, "❌ ব্যবহার: `/setsupport @username`", parse_mode="Markdown")
+        bot.reply_to(message, "❌ ব্যবহার: <code>/setsupport @username</code>", parse_mode="HTML")
 
 @bot.message_handler(commands=['setrange'])
 def set_range_cmd(message):
@@ -295,9 +296,9 @@ def set_range_cmd(message):
         if not text.startswith('@'): text = '@' + text
         db["settings"]["range_group"] = text
         save_data()
-        bot.reply_to(message, f"✅ রেঞ্জ চ্যানেল সেট হয়েছে: `{text}`", parse_mode="Markdown")
+        bot.reply_to(message, f"✅ রেঞ্জ চ্যানেল সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
     else:
-        bot.reply_to(message, "❌ ব্যবহার: `/setrange @channel`", parse_mode="Markdown")
+        bot.reply_to(message, "❌ ব্যবহার: <code>/setrange @channel</code>", parse_mode="HTML")
 
 @bot.message_handler(commands=['setgroup'])
 def set_group_cmd(message):
@@ -306,9 +307,9 @@ def set_group_cmd(message):
         if not text.startswith('@'): text = '@' + text
         db["settings"]["otp_group"] = text
         save_data()
-        bot.reply_to(message, f"✅ ওটিপি গ্রুপ সেট হয়েছে: `{text}`", parse_mode="Markdown")
+        bot.reply_to(message, f"✅ ওটিপি গ্রুপ সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
     else:
-        bot.reply_to(message, "❌ ব্যবহার: `/setgroup @group`", parse_mode="Markdown")
+        bot.reply_to(message, "❌ ব্যবহার: <code>/setgroup @group</code>", parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "☎️ Get Number" or m.text == "/number")
 def get_number_handler(message):
@@ -318,48 +319,56 @@ def get_number_handler(message):
     if saved_r:
         fetch_and_send_number(chat_id, saved_r)
     else:
-        msg = bot.send_message(chat_id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: `224671808XXX`):", parse_mode="Markdown")
+        msg = bot.send_message(chat_id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: <code>224671808XXX</code>):", parse_mode="HTML")
         bot.register_next_step_handler(msg, process_save_range)
 
 @bot.message_handler(func=lambda m: m.text == "⚙️ Change Range" or m.text == "/range")
 def change_range_handler(message):
-    msg = bot.send_message(message.chat.id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: `224671808XXX`):", parse_mode="Markdown")
+    msg = bot.send_message(message.chat.id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: <code>224671808XXX</code>):", parse_mode="HTML")
     bot.register_next_step_handler(msg, process_save_range)
 
 @bot.message_handler(func=lambda m: m.text == "📱 Range Group")
 def range_group_handler(message):
     rg = get_setting("range_group", "@hototprange")
+    clean_url = rg.replace('@', '')
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেলে যান", url=f"https://t.me/{rg.replace('@', '')}"))
-    bot.send_message(message.chat.id, f"📢 **আমাদের লাইভ রেঞ্জ চ্যানেল:** {rg}\n\nনিচের বাটনে চাপ দিয়ে চ্যানেলে যুক্ত হন:", reply_markup=markup, parse_mode="Markdown")
+    markup.add(types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেলে যান", url=f"https://t.me/{clean_url}"))
+    bot.send_message(message.chat.id, f"📢 <b>আমাদের লাইভ রেঞ্জ চ্যানেল:</b> {rg}\n\nনিচের বাটনে চাপ দিয়ে চ্যানেলে যুক্ত হন:", reply_markup=markup, parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "🔽 OTHER" or m.text == "/other")
 def other_handler(message):
-    bot.send_message(message.chat.id, "📋 **OTHER OPTIONS**\n\nনিচের অপশন থেকে সিলেক্ট করুন:", reply_markup=bottom_other_keyboard(), parse_mode="Markdown")
+    bot.send_message(message.chat.id, "📋 <b>OTHER OPTIONS</b>\n\nনিচের অপশন থেকে সিলেক্ট করুন:", reply_markup=bottom_other_keyboard(), parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "🏠 Home" or m.text == "/home")
 def home_handler(message):
-    bot.send_message(message.chat.id, "👋 **Welcome to HotOtp Bot**", reply_markup=bottom_main_keyboard())
+    bot.send_message(message.chat.id, "👋 <b>Welcome to HotOtp Bot</b>", reply_markup=bottom_main_keyboard())
 
-# ১০০% সচল এডমিন সাপোর্ট ফিচার
+# ১০০% আন্ডারস্কোর সেফ সাপোর্ট হ্যান্ডলার
 @bot.message_handler(func=lambda m: "Support" in m.text or "help" in m.text or m.text == "/help")
 def support_handler(message):
     supp = get_setting("support", "@hototpotp")
+    clean_supp = supp.replace('@', '')
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("💬 এডমিন সাপোর্ট (Contact Admin)", url=f"https://t.me/{supp.replace('@', '')}"))
-    bot.send_message(message.chat.id, f"💬 **সহায়তার জন্য এডমিন চ্যাট:** {supp}\n\nযেকোনো সমস্যায় এডমিনের সাথে যোগাযোগ করুন।", reply_markup=markup, parse_mode="Markdown")
+    markup.add(types.InlineKeyboardButton("💬 এডমিন সাপোর্ট (Contact Admin)", url=f"https://t.me/{clean_supp}"))
+    
+    bot.send_message(
+        message.chat.id, 
+        f"💬 <b>সহায়তার জন্য এডমিন চ্যাট:</b> <code>{supp}</code>\n\nযেকোনো সমস্যায় এডমিনের সাথে যোগাযোগ করুন।", 
+        reply_markup=markup, 
+        parse_mode="HTML"
+    )
 
 @bot.message_handler(func=lambda m: m.text == "✉️ Get Tempmail" or m.text == "/tempmail")
 def tempmail_handler(message):
-    bot.send_message(message.chat.id, "✉️ **Tempmail Feature:** শীঘ্রই আসছে!", parse_mode="Markdown")
+    bot.send_message(message.chat.id, "✉️ <b>Tempmail Feature:</b> শীঘ্রই আসছে!", parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "🔐 2FA" or m.text == "/twofa")
 def twofa_handler(message):
-    bot.send_message(message.chat.id, "🔐 **2FA Code Generator:** শীঘ্রই আসছে!", parse_mode="Markdown")
+    bot.send_message(message.chat.id, "🔐 <b>2FA Code Generator:</b> শীঘ্রই আসছে!", parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "👤 Fake Name")
 def fakename_handler(message):
-    bot.send_message(message.chat.id, "👤 **Fake Name Generator:** John Doe", parse_mode="Markdown")
+    bot.send_message(message.chat.id, "👤 <b>Fake Name Generator:</b> John Doe", parse_mode="HTML")
 
 # ----------------------------------------------------
 # ৮. কলব্যাক হ্যান্ডলার (ইনলাইন বাটন)
@@ -378,10 +387,10 @@ def callback_inline(call):
         db["ranges"].pop(chat_str, None)
         save_data()
         bot.clear_step_handler_by_chat_id(chat_id)
-        bot.send_message(chat_id, "🔄 **সবকিছু রিসেট করা হয়েছে!**", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
+        bot.send_message(chat_id, "🔄 <b>সবকিছু রিসেট করা হয়েছে!</b>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
         
     elif call.data == "ask_range":
-        msg = bot.send_message(chat_id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: `224671808XXX`):", parse_mode="Markdown")
+        msg = bot.send_message(chat_id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: <code>224671808XXX</code>):", parse_mode="HTML")
         bot.register_next_step_handler(msg, process_save_range)
 
     elif call.data == "get_num_auto":
@@ -395,7 +404,7 @@ def callback_inline(call):
     elif call.data.startswith("check_otp_"):
         parts = call.data.replace("check_otp_", "").split("|")
         otp = fetch_otp(parts[0], parts[1] if len(parts) > 1 else "")
-        if otp: bot.send_message(chat_id, f"📩 {otp}", parse_mode="Markdown")
+        if otp: bot.send_message(chat_id, f"📩 {otp}", parse_mode="HTML")
         else: bot.answer_callback_query(call.id, text="এখনো ওটিপি আসেনি! ২-৩ সেকেন্ড পর আবার চাপুন...", show_alert=True)
 
 # স্মার্ট রেঞ্জ সেভার
@@ -419,13 +428,13 @@ def process_save_range(message):
 
     db["ranges"][chat_str] = text
     save_data()
-    bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{text}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
+    bot.send_message(chat_id, f"✅ <b>রেঞ্জ সেভ হয়েছে:</b> <code>{text}</code>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
     fetch_and_send_number(chat_id, text)
 
-# ক্লিন নাম্বার সার্ভিস
+# নাম্বার ফানেল
 def fetch_and_send_number(chat_id, user_range, message_id=None):
     if not message_id:
-        bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
+        bot.send_message(chat_id, f"⏳ <code>{user_range}</code> রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="HTML")
     
     url = "https://nexaotpservice.com/api/v1/numbers/get"
     headers = {"X-API-Key": NEXA_API_KEY, "Content-Type": "application/json"}
@@ -439,12 +448,12 @@ def fetch_and_send_number(chat_id, user_range, message_id=None):
             num_id = res.get("number_id", "")
             raw_num = str(number).replace("+", "").strip()
 
-            otp_grp = get_setting("otp_group", "@hototpotp")
-            rng_grp = get_setting("range_group", "@hototprange")
+            otp_grp = get_setting("otp_group", "@hototpotp").replace('@', '')
+            rng_grp = get_setting("range_group", "@hototprange").replace('@', '')
 
             msg_text = (
-                f"✅ **Number:** 🌐 {country}\n\n"
-                f"👇 **নাম্বারটির ওপর এক চাপ দিলেই সরাসরি কপি হবে:**\n`{raw_num}`"
+                f"✅ <b>Number:</b> 🌐 {country}\n\n"
+                f"👇 <b>নাম্বারটির ওপর এক চাপ দিলেই সরাসরি কপি হবে:</b>\n<code>{raw_num}</code>"
             )
             
             markup = types.InlineKeyboardMarkup(row_width=2)
@@ -454,8 +463,8 @@ def fetch_and_send_number(chat_id, user_range, message_id=None):
             except AttributeError:
                 btn_num1 = types.InlineKeyboardButton(f"📋 📱 {raw_num}", callback_data="copy_info")
 
-            btn_otp_group = types.InlineKeyboardButton("🔔 OTP GROUP", url=f"https://t.me/{otp_grp.replace('@', '')}")
-            btn_range_group = types.InlineKeyboardButton("📱 RANGE GROUP", url=f"https://t.me/{rng_grp.replace('@', '')}")
+            btn_otp_group = types.InlineKeyboardButton("🔔 OTP GROUP", url=f"https://t.me/{otp_grp}")
+            btn_range_group = types.InlineKeyboardButton("📱 RANGE GROUP", url=f"https://t.me/{rng_grp}")
             
             btn_change_num = types.InlineKeyboardButton("🔄 Change Number", callback_data="get_num_auto")
             btn_refresh = types.InlineKeyboardButton("🔄 Refresh", callback_data=f"check_otp_{num_id}|{number}")
@@ -468,11 +477,11 @@ def fetch_and_send_number(chat_id, user_range, message_id=None):
             
             if message_id:
                 try:
-                    bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=msg_text, reply_markup=markup, parse_mode="Markdown")
+                    bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=msg_text, reply_markup=markup, parse_mode="HTML")
                 except Exception:
-                    bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+                    bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="HTML")
             else:
-                bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+                bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="HTML")
                 
             threading.Thread(target=auto_check_otp, args=(chat_id, num_id, number), daemon=True).start()
         else:
