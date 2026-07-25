@@ -15,7 +15,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Secured Admin Panel Active!", 200
+    return "HotOtp Group Forwarder Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -32,13 +32,13 @@ def keep_alive_pinger():
 threading.Thread(target=keep_alive_pinger, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও এডমিন সিকিউরিটি কনফিগারেশন
+# ২. বটের মূল তথ্য ও কনফিগারেশন
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
 
-# ⚠️ এখানে /myid লিখে পাওয়া আপনার টেলিগ্রাম আইডি বসিয়ে দিন (যেমন: 123456789)
-ADMIN_ID = 7418898985  
+# ⚠️ এখানে /myid লিখে পাওয়া আপনার টেলিগ্রাম আইডি বসিয়ে দেবেন (যেমন: 123456789)
+ADMIN_ID = None  
 
 BOT_USERNAME = "hot_opt_bot"              # বটের ইউজারনেম
 
@@ -71,10 +71,8 @@ def save_data():
 
 db = load_data()
 
-# এডমিন ভেরিফিকেশন লজিক
 def is_admin(chat_id):
-    if ADMIN_ID is None:
-        return True # যদি আইডি সেট না থাকে তবে সাময়িক এক্সেস দেবে
+    if ADMIN_ID is None: return True
     return str(chat_id) == str(ADMIN_ID) or chat_id == ADMIN_ID
 
 def get_setting(key, default_val):
@@ -129,7 +127,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Secured Admin Panel Active!")
+print("🔥 HotOtp OTP Group Forwarder Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -207,7 +205,7 @@ def auto_post_live_ranges():
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৬. ওটিপি ফিল্টার
+# ৬. ওটিপি ফিল্টার ও গ্রুপে অটো ফরোয়ার্ড সিস্টেম
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -233,6 +231,7 @@ def fetch_otp(num_id, number):
     except Exception: pass
     return None
 
+# ওটিপি পাওয়ার সাথে সাথে ইউজার এবং ওটিপি গ্রুপে একসাথে মেসেজ পাঠানো
 def auto_check_otp(chat_id, num_id, number):
     for _ in range(60):
         time.sleep(3)
@@ -240,11 +239,34 @@ def auto_check_otp(chat_id, num_id, number):
         if otp:
             db["total_otps"] = db.get("total_otps", 0) + 1
             save_data()
+            
+            # ১. প্রাইভেট চ্যাটে ইউজারকে ওটিপি পাঠানো
             bot.send_message(chat_id, f"🎉 <b>ওটিপি চলে এসেছে!</b>\n\n{otp}", parse_mode="HTML")
+            
+            # ২. একই সাথে আপনার @hototpotp গ্রুপে অটো ফরোয়ার্ড করা
+            try:
+                otp_grp = get_setting("otp_group", "@hototpotp")
+                raw_num = str(number).replace("+", "").strip()
+                
+                group_post = (
+                    f"🎉 <b>NEW OTP SUCCESS HIT</b> 🎉\n\n"
+                    f"📱 <b>Number:</b> <code>{raw_num}</code>\n"
+                    f"{otp}\n\n"
+                    f"⚡ <b>Status:</b> Delivered via HotOtp Bot ⭐"
+                )
+                
+                markup = types.InlineKeyboardMarkup()
+                btn_bot = types.InlineKeyboardButton("🤖 HotOtp Bot-এ নাম্বার নিন", url=f"https://t.me/{BOT_USERNAME}")
+                markup.add(btn_bot)
+                
+                bot.send_message(otp_grp, group_post, reply_markup=markup, parse_mode="HTML")
+            except Exception as ge:
+                print(f"Group forward error: {ge}")
+                
             return
 
 # ----------------------------------------------------
-# ৭. সিকিউরড এডমিন কমান্ডস
+# ৭. বট মেসেজ ও এডমিন প্যানেল হ্যান্ডলারস
 # ----------------------------------------------------
 @bot.message_handler(commands=['myid'])
 def my_id_command(message):
@@ -472,7 +494,7 @@ def process_save_range(message):
     bot.send_message(chat_id, f"✅ <b>রেঞ্জ সেভ হয়েছে:</b> <code>{text}</code>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
     fetch_and_send_number(chat_id, text)
 
-# নাম্বার সার্ভিস
+# নাম্বার ফানেল
 def fetch_and_send_number(chat_id, user_range, message_id=None):
     if not message_id:
         bot.send_message(chat_id, f"⏳ <code>{user_range}</code> রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="HTML")
