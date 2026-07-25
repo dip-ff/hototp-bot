@@ -63,7 +63,7 @@ def save_data():
 db = load_data()
 posted_signatures = set()
 
-# কিবোর্ড বাটনের লিস্ট (যাতে ভুল করে রেঞ্জ হিসেবে সেভ না হয়)
+# কিবোর্ড বাটনের লিস্ট
 MENU_BUTTONS = [
     "☎️ Get Number", "⚙️ Change Range", "📱 Range Group", 
     "✉️ Get Tempmail", "🔐 2FA", "👤 Fake Name", "🔽 OTHER", 
@@ -311,7 +311,10 @@ def callback_inline(call):
     try: bot.answer_callback_query(call.id)
     except: pass
 
-    if call.data == "reset_all":
+    if call.data == "copy_info":
+        bot.answer_callback_query(call.id, text="উপরে বোল্ড বক্সে থাকা নাম্বারটির ওপর এক টাচ করলেই কপি হয়ে যাবে!", show_alert=True)
+
+    elif call.data == "reset_all":
         db["ranges"].pop(chat_str, None)
         save_data()
         bot.clear_step_handler_by_chat_id(chat_id)
@@ -334,13 +337,12 @@ def callback_inline(call):
         if otp: bot.send_message(chat_id, f"📩 {otp}", parse_mode="Markdown")
         else: bot.answer_callback_query(call.id, text="এখনো ওটিপি আসেনি! ২-৩ সেকেন্ড পর আবার চাপুন...", show_alert=True)
 
-# স্মার্ট রেঞ্জ সেভার (বাটন ফিল্টার সহ)
+# স্মার্ট রেঞ্জ সেভার
 def process_save_range(message):
     chat_id = message.chat.id
     chat_str = str(chat_id)
     text = message.text.strip()
     
-    # যদি ইউজার রেঞ্জ না লিখে অন্য কোনো কিবোর্ড বাটন চেপে দেয় বা কমান্ড দেয়
     if text in MENU_BUTTONS or text.startswith("/"):
         bot.clear_step_handler_by_chat_id(chat_id)
         if text == "📱 Range Group": range_group_handler(message)
@@ -355,12 +357,12 @@ def process_save_range(message):
         elif text == "👤 Fake Name": fakename_handler(message)
         return
 
-    # যদি আসল রেঞ্জ বসানো হয়
     db["ranges"][chat_str] = text
     save_data()
     bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{text}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
     fetch_and_send_number(chat_id, text)
 
+# ২টির সমস্যার সমাধানসহ নাম্বার ফানেল
 def fetch_and_send_number(chat_id, user_range):
     bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
     
@@ -376,20 +378,31 @@ def fetch_and_send_number(chat_id, user_range):
             num_id = res.get("number_id", "")
             raw_num = str(number).replace("+", "").strip()
 
-            msg_text = f"✅ **Number:** 🌐 {country} (0.20TK)"
+            # ১-টাচ কপি টেক্সট ব্যাকটিকসহ
+            msg_text = (
+                f"✅ **Number:** 🌐 {country} (0.20TK)\n\n"
+                f"👇 **নাম্বারটির ওপর এক চাপ দিলেই সরাসরি কপি হবে:**\n`{raw_num}`"
+            )
             
             markup = types.InlineKeyboardMarkup(row_width=2)
             
-            btn_num1 = types.InlineKeyboardButton(f"📋 📱 {raw_num}", callback_data="copy_ignore")
+            # ১-টাচ বাটন
+            try:
+                btn_num1 = types.InlineKeyboardButton(f"📋 📱 {raw_num}", copy_text=types.CopyTextButton(raw_num))
+            except AttributeError:
+                btn_num1 = types.InlineKeyboardButton(f"📋 📱 {raw_num}", callback_data="copy_info")
+
             btn_otp_group = types.InlineKeyboardButton("🔔 OTP GROUP", url=f"https://t.me/{OTP_GROUP.replace('@', '')}")
             btn_range_group = types.InlineKeyboardButton("📱 RANGE GROUP", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
-            btn_change = types.InlineKeyboardButton("⚙️ Change Range", callback_data="ask_range")
+            
+            # Change Range বাদ দিয়ে "Change Number" (একই রেঞ্জ থেকে নতুন নাম্বার আনার বাটন)
+            btn_change_num = types.InlineKeyboardButton("🔄 Change Number", callback_data="get_num_auto")
             btn_refresh = types.InlineKeyboardButton("🔄 Refresh", callback_data=f"check_otp_{num_id}|{number}")
             btn_back = types.InlineKeyboardButton("⬅️ Back", callback_data="reset_all")
 
             markup.add(btn_num1)
             markup.add(btn_otp_group, btn_range_group)
-            markup.add(btn_change, btn_refresh)
+            markup.add(btn_change_num, btn_refresh)
             markup.add(btn_back)
             
             bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
