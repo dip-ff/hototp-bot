@@ -15,7 +15,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Error Filtered Active!", 200
+    return "HotOtp Fully Active & Secured!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -34,8 +34,10 @@ threading.Thread(target=keep_alive_pinger, daemon=True).start()
 # ----------------------------------------------------
 # ২. বটের মূল তথ্য ও কনফিগারেশন
 # ----------------------------------------------------
-BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
-NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
+# ⚠️ আপনার @BotFather থেকে পাওয়া নতুন টোকেনটি এখানে বসাবেন
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8810955739:AAER3iDZeDClsCpdDJvAYcqQzFugGMxsUE4"
+
+NEXA_API_KEY = os.environ.get("NEXA_API_KEY") or "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e"
 
 # ⚠️ এখানে /myid লিখে পাওয়া আপনার টেলিগ্রাম আইডি বসিয়ে দেবেন (যেমন: 123456789)
 ADMIN_ID = None  
@@ -98,56 +100,37 @@ MENU_BUTTONS = [
 ]
 
 # ----------------------------------------------------
-# ৩. স্মার্ট ওটিপি এক্সট্রাক্টর (এরর মেসেজ বাদ দেবে)
+# ৩. স্মার্ট ওটিপি এক্সট্রাক্টর
 # ----------------------------------------------------
 def is_valid_otp_str(s):
-    if not s or not isinstance(s, (str, int)):
-        return False
+    if not s or not isinstance(s, (str, int)): return False
     val = str(s).strip().lower()
-    if val in ["null", "none", "false", "true", "undefined", ""]:
-        return False
-    
-    # যেসব এরর লেখা আসলে স্কিপ করতে হবে
-    error_keywords = [
-        "endpoint not found", "not found", "error", "invalid", 
-        "no sms", "waiting", "failed", "unauthorized", "expired"
-    ]
+    if val in ["null", "none", "false", "true", "undefined", ""]: return False
+    error_keywords = ["endpoint not found", "not found", "error", "invalid", "no sms", "waiting", "failed", "unauthorized", "expired"]
     for err in error_keywords:
-        if err in val:
-            return False
+        if err in val: return False
     return True
 
 def extract_otp_smart(res_json):
-    if not res_json or not isinstance(res_json, (dict, list)):
-        return None
-
+    if not res_json or not isinstance(res_json, (dict, list)): return None
     if isinstance(res_json, dict):
-        if res_json.get("success") is False or str(res_json.get("success")).lower() == "false":
-            return None
-
-        # ১. নির্দিষ্ট জানা কি (Keys) স্ক্যান করা
+        if res_json.get("success") is False or str(res_json.get("success")).lower() == "false": return None
         for key in ['code', 'otp', 'sms', 'sms_code', 'data', 'message', 'text', 'full']:
             val = res_json.get(key)
-            if is_valid_otp_str(val):
-                return str(val).strip()
-        
-        # ২. ডিকশনারির অন্যান্য ফিল্ড চেক করা
+            if is_valid_otp_str(val): return str(val).strip()
         for k, v in res_json.items():
             if k not in ['success', 'status', 'expires_in', 'number_id', 'id', 'country', 'number', 'error'] and v:
-                if is_valid_otp_str(v):
-                    return str(v).strip()
+                if is_valid_otp_str(v): return str(v).strip()
                 elif isinstance(v, dict):
                     sub = extract_otp_smart(v)
                     if sub: return sub
                 elif isinstance(v, list) and len(v) > 0:
                     sub = extract_otp_smart(v[0])
                     if sub: return sub
-
     elif isinstance(res_json, list) and len(res_json) > 0:
         for item in res_json:
             sub = extract_otp_smart(item)
             if sub: return sub
-
     return None
 
 # ----------------------------------------------------
@@ -186,7 +169,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Error Filtered Bot Active!")
+print("🔥 HotOtp Bot Running Successfully!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -300,45 +283,36 @@ def auto_post_live_ranges():
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৭. ১০০% নিখুঁত ওটিপি ফিল্টার (এরর ফ্রি)
+# ৭. ওটিপি ফিল্টার
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
-    
-    # পদ্ধতি ১: নাম্বার ওটিপি চেক
     urls = [
         f"https://nexaotpservice.com/api/v1/numbers/{num_id}/sms",
         f"https://nexaotpservice.com/api/v1/sms/recent"
     ]
-    
     for u in urls:
         try:
             res1 = requests.get(u, headers=headers, timeout=5).json()
             found = extract_otp_smart(res1)
-            if found:
-                return f"📩 <b>OTP Received:</b> <code>{found}</code>"
+            if found: return f"📩 <b>OTP Received:</b> <code>{found}</code>"
         except Exception: pass
 
-    # পদ্ধতি ২: কনসোল লগ থেকে ফোন নম্বর ম্যাচিং
     try:
         logs = fetch_all_site_logs()
         clean_target_num = str(number).replace("+", "").strip()
-        
         for item in logs:
             if isinstance(item, dict):
                 item_num = str(item.get("number") or item.get("phone") or "").replace("+", "").strip()
                 item_id = str(item.get("number_id") or item.get("id") or "").strip()
-                
                 if (clean_target_num and clean_target_num in item_num) or (num_id and num_id == item_id):
                     found = extract_otp_smart(item)
-                    if found:
-                        return f"📩 <b>OTP Received:</b> <code>{found}</code>"
+                    if found: return f"📩 <b>OTP Received:</b> <code>{found}</code>"
     except Exception: pass
-    
     return None
 
 def auto_check_otp(chat_id, num_id, number):
-    for _ in range(60): # ৩ মিনিট ব্যাকগ্রাউন্ডে চেক করবে
+    for _ in range(60):
         time.sleep(3)
         otp = fetch_otp(num_id, number)
         if otp:
@@ -364,7 +338,7 @@ def auto_check_otp(chat_id, num_id, number):
                 markup.add(btn_bot)
                 
                 bot.send_message(otp_grp, group_post, reply_markup=markup, parse_mode="HTML")
-            except Exception as ge: print(f"Group forward error: {ge}")
+            except Exception as ge: print(f"Group error: {ge}")
             return
 
 # ----------------------------------------------------
@@ -405,8 +379,6 @@ def set_support_cmd(message):
         db["settings"]["support"] = text
         save_data()
         bot.reply_to(message, f"✅ সাপোর্ট ইউজারনেম সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
-    else:
-        bot.reply_to(message, "❌ ব্যবহার: <code>/setsupport @username</code>", parse_mode="HTML")
 
 @bot.message_handler(commands=['setrange'])
 def set_range_cmd(message):
@@ -417,8 +389,6 @@ def set_range_cmd(message):
         db["settings"]["range_group"] = text
         save_data()
         bot.reply_to(message, f"✅ রেঞ্জ চ্যানেল সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
-    else:
-        bot.reply_to(message, "❌ ব্যবহার: <code>/setrange @channel</code>", parse_mode="HTML")
 
 @bot.message_handler(commands=['setgroup'])
 def set_group_cmd(message):
@@ -429,27 +399,20 @@ def set_group_cmd(message):
         db["settings"]["otp_group"] = text
         save_data()
         bot.reply_to(message, f"✅ ওটিপি গ্রুপ সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
-    else:
-        bot.reply_to(message, "❌ ব্যবহার: <code>/setgroup @group</code>", parse_mode="HTML")
 
 @bot.message_handler(commands=['broadcast'])
 def broadcast_command(message):
     if not is_admin(message.chat.id): return
     text = message.text.replace('/broadcast', '').strip()
-    if not text:
-        bot.reply_to(message, "❌ ব্যবহারের নিয়ম: <code>/broadcast আপনার মেসেজ</code>", parse_mode="HTML")
-        return
-
+    if not text: return
     success_count = 0
-    bot.reply_to(message, "⏳ সব ইউজারের কাছে মেসেজ পাঠানো হচ্ছে...")
     for user_id in db["users"]:
         try:
             bot.send_message(user_id, f"📢 <b>ADMIN ANNOUNCEMENT</b> 📢\n\n{text}", parse_mode="HTML")
             success_count += 1
             time.sleep(0.1)
         except: pass
-    
-    bot.send_message(message.chat.id, f"✅ ব্রডকাস্ট সম্পন্ন হয়েছে!\nমোট <code>{success_count}</code> জনের কাছে সফলভাবে পাঠানো হয়েছে।", parse_mode="HTML")
+    bot.send_message(message.chat.id, f"✅ ব্রডকাস্ট সম্পন্ন হয়েছে!\nমোট <code>{success_count}</code> জনের কাছে পাঠানো হয়েছে।", parse_mode="HTML")
 
 # ----------------------------------------------------
 # ৯. সাধারণ ইউজার মেসেজ হ্যান্ডলারস
