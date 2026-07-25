@@ -64,13 +64,14 @@ db = load_data()
 posted_signatures = set()
 
 # ----------------------------------------------------
-# ৩. টেলিগ্রাম পপ-আপ মেনু কমান্ডস (স্ক্রিনশট ২ এর মতো)
+# ৩. টেলিগ্রাম পপ-আপ মেনু কমান্ডস
 # ----------------------------------------------------
 try:
     bot_commands = [
         types.BotCommand("start", "🚀 Start"),
         types.BotCommand("home", "🏠 Home"),
         types.BotCommand("number", "☎️ Get Number"),
+        types.BotCommand("range", "⚙️ Change Range"),
         types.BotCommand("tempmail", "✉️ Get Tempmail"),
         types.BotCommand("twofa", "🔐 2FA"),
         types.BotCommand("balances", "💰 Balances"),
@@ -84,11 +85,12 @@ except Exception as e:
     print(f"Commands set error: {e}")
 
 # ----------------------------------------------------
-# ৪. স্থায়ী নিচের কিবোর্ড বাটন (স্ক্রিনশট ১ ও ৩ এর মতো)
+# ৪. স্থায়ী নিচের কিবোর্ড বাটন (Change Range ও Range Group সহ)
 # ----------------------------------------------------
 def bottom_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    markup.add(types.KeyboardButton("☎️ Get Number"), types.KeyboardButton("✉️ Get Tempmail"))
+    markup.add(types.KeyboardButton("☎️ Get Number"), types.KeyboardButton("⚙️ Change Range"))
+    markup.add(types.KeyboardButton("📱 Range Group"), types.KeyboardButton("✉️ Get Tempmail"))
     markup.add(types.KeyboardButton("🔐 2FA"), types.KeyboardButton("👤 Fake Name"))
     markup.add(types.KeyboardButton("🔽 OTHER"))
     return markup
@@ -100,7 +102,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp GetPaid Style Panel Active!")
+print("🔥 HotOtp Complete Panel Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -214,7 +216,7 @@ def auto_check_otp(chat_id, num_id, number):
             return
 
 # ----------------------------------------------------
-# ৭. বট মেসেজ হ্যান্ডলারস (কিবোর্ড বাটন রিপ্লাই)
+# ৭. বট মেসেজ হ্যান্ডলারস
 # ----------------------------------------------------
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -250,6 +252,17 @@ def get_number_handler(message):
     else:
         msg = bot.send_message(chat_id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: `224671808XXX`):", parse_mode="Markdown")
         bot.register_next_step_handler(msg, process_save_range)
+
+@bot.message_handler(func=lambda m: m.text == "⚙️ Change Range" or m.text == "/range")
+def change_range_handler(message):
+    msg = bot.send_message(message.chat.id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: `224671808XXX`):", parse_mode="Markdown")
+    bot.register_next_step_handler(msg, process_save_range)
+
+@bot.message_handler(func=lambda m: m.text == "📱 Range Group")
+def range_group_handler(message):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেলে যান", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}"))
+    bot.send_message(message.chat.id, f"📢 **আমাদের লাইভ রেঞ্জ চ্যানেল:** {RANGE_GROUP}\n\nনিচের বাটনে চাপ দিয়ে চ্যানেলে যুক্ত হন:", reply_markup=markup, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "🔽 OTHER" or m.text == "/other")
 def other_handler(message):
@@ -320,10 +333,9 @@ def process_save_range(message):
     new_range = message.text.strip()
     db["ranges"][chat_str] = new_range
     save_data()
-    bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{new_range}`", parse_mode="Markdown")
+    bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{new_range}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
     fetch_and_send_number(chat_id, new_range)
 
-# গেটপেইড ৩ নম্বর প্রফেশনাল কার্ড লেআউট
 def fetch_and_send_number(chat_id, user_range):
     bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
     
@@ -343,15 +355,15 @@ def fetch_and_send_number(chat_id, user_range):
             
             markup = types.InlineKeyboardMarkup(row_width=2)
             
-            # ১-টাচ কপি বাটন (১ম ও ৩য় স্ক্রিনশটের মতো)
             btn_num1 = types.InlineKeyboardButton(f"📋 📱 {raw_num}", callback_data="copy_ignore")
-            btn_otp_group = types.InlineKeyboardButton("🔔 OTP GROUP", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
-            btn_change = types.InlineKeyboardButton("🔄 Change Number", callback_data="ask_range")
+            btn_otp_group = types.InlineKeyboardButton("🔔 OTP GROUP", url=f"https://t.me/{OTP_GROUP.replace('@', '')}")
+            btn_range_group = types.InlineKeyboardButton("📱 RANGE GROUP", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
+            btn_change = types.InlineKeyboardButton("⚙️ Change Range", callback_data="ask_range")
             btn_refresh = types.InlineKeyboardButton("🔄 Refresh", callback_data=f"check_otp_{num_id}|{number}")
             btn_back = types.InlineKeyboardButton("⬅️ Back", callback_data="reset_all")
 
             markup.add(btn_num1)
-            markup.add(btn_otp_group)
+            markup.add(btn_otp_group, btn_range_group)
             markup.add(btn_change, btn_refresh)
             markup.add(btn_back)
             
