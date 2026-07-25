@@ -15,7 +15,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Fully Fixed Active!", 200
+    return "HotOtp Secured Admin Panel Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -32,10 +32,13 @@ def keep_alive_pinger():
 threading.Thread(target=keep_alive_pinger, daemon=True).start()
 
 # ----------------------------------------------------
-# ২. বটের মূল তথ্য ও কনফিগারেশন
+# ২. বটের মূল তথ্য ও এডমিন সিকিউরিটি কনফিগারেশন
 # ----------------------------------------------------
 BOT_TOKEN = "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
 NEXA_API_KEY = "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
+
+# ⚠️ এখানে /myid লিখে পাওয়া আপনার টেলিগ্রাম আইডি বসিয়ে দিন (যেমন: 123456789)
+ADMIN_ID = None  
 
 BOT_USERNAME = "hot_opt_bot"              # বটের ইউজারনেম
 
@@ -67,6 +70,12 @@ def save_data():
     except: pass
 
 db = load_data()
+
+# এডমিন ভেরিফিকেশন লজিক
+def is_admin(chat_id):
+    if ADMIN_ID is None:
+        return True # যদি আইডি সেট না থাকে তবে সাময়িক এক্সেস দেবে
+    return str(chat_id) == str(ADMIN_ID) or chat_id == ADMIN_ID
 
 def get_setting(key, default_val):
     try:
@@ -120,7 +129,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp HTML Safe Bot Active!")
+print("🔥 HotOtp Secured Admin Panel Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -235,7 +244,91 @@ def auto_check_otp(chat_id, num_id, number):
             return
 
 # ----------------------------------------------------
-# ৭. বট মেসেজ ও এডমিন প্যানেল হ্যান্ডলারস
+# ৭. সিকিউরড এডমিন কমান্ডস
+# ----------------------------------------------------
+@bot.message_handler(commands=['myid'])
+def my_id_command(message):
+    bot.reply_to(message, f"🆔 আপনার টেলিগ্রাম আইডি: <code>{message.chat.id}</code>", parse_mode="HTML")
+
+@bot.message_handler(commands=['admin'])
+def admin_panel_cmd(message):
+    if not is_admin(message.chat.id):
+        bot.reply_to(message, "❌ <b>Access Denied!</b> আপনি এই বটের এডমিন নন।", parse_mode="HTML")
+        return
+
+    supp = get_setting("support", "@hototpotp")
+    rng = get_setting("range_group", "@hototprange")
+    otp = get_setting("otp_group", "@hototpotp")
+    
+    msg = (
+        "⚙️ <b>HOT OTP ADMIN PANEL</b> ⚙️\n\n"
+        f"💬 <b>Current Support:</b> <code>{supp}</code>\n"
+        f"📱 <b>Range Channel:</b> <code>{rng}</code>\n"
+        f"🔔 <b>OTP Group:</b> <code>{otp}</code>\n\n"
+        "📌 <b>বটের ভেতরে সেটিংস পরিবর্তন করার নিয়ম:</b>\n"
+        "• সাপোর্ট আইডি বদলাতে: <code>/setsupport @username</code>\n"
+        "• রেঞ্জ চ্যানেল বদলাতে: <code>/setrange @channel</code>\n"
+        "• ওটিপি গ্রুপ বদলাতে: <code>/setgroup @group</code>"
+    )
+    bot.reply_to(message, msg, parse_mode="HTML")
+
+@bot.message_handler(commands=['setsupport'])
+def set_support_cmd(message):
+    if not is_admin(message.chat.id): return
+    text = message.text.replace('/setsupport', '').strip()
+    if text:
+        if not text.startswith('@'): text = '@' + text
+        db["settings"]["support"] = text
+        save_data()
+        bot.reply_to(message, f"✅ সাপোর্ট ইউজারনেম সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
+    else:
+        bot.reply_to(message, "❌ ব্যবহার: <code>/setsupport @username</code>", parse_mode="HTML")
+
+@bot.message_handler(commands=['setrange'])
+def set_range_cmd(message):
+    if not is_admin(message.chat.id): return
+    text = message.text.replace('/setrange', '').strip()
+    if text:
+        if not text.startswith('@'): text = '@' + text
+        db["settings"]["range_group"] = text
+        save_data()
+        bot.reply_to(message, f"✅ রেঞ্জ চ্যানেল সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
+    else:
+        bot.reply_to(message, "❌ ব্যবহার: <code>/setrange @channel</code>", parse_mode="HTML")
+
+@bot.message_handler(commands=['setgroup'])
+def set_group_cmd(message):
+    if not is_admin(message.chat.id): return
+    text = message.text.replace('/setgroup', '').strip()
+    if text:
+        if not text.startswith('@'): text = '@' + text
+        db["settings"]["otp_group"] = text
+        save_data()
+        bot.reply_to(message, f"✅ ওটিপি গ্রুপ সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
+    else:
+        bot.reply_to(message, "❌ ব্যবহার: <code>/setgroup @group</code>", parse_mode="HTML")
+
+@bot.message_handler(commands=['broadcast'])
+def broadcast_command(message):
+    if not is_admin(message.chat.id): return
+    text = message.text.replace('/broadcast', '').strip()
+    if not text:
+        bot.reply_to(message, "❌ ব্যবহারের নিয়ম: <code>/broadcast আপনার মেসেজ</code>", parse_mode="HTML")
+        return
+
+    success_count = 0
+    bot.reply_to(message, "⏳ সব ইউজারের কাছে মেসেজ পাঠানো হচ্ছে...")
+    for user_id in db["users"]:
+        try:
+            bot.send_message(user_id, f"📢 <b>ADMIN ANNOUNCEMENT</b> 📢\n\n{text}", parse_mode="HTML")
+            success_count += 1
+            time.sleep(0.1)
+        except: pass
+    
+    bot.send_message(message.chat.id, f"✅ ব্রডকাস্ট সম্পন্ন হয়েছে!\nমোট <code>{success_count}</code> জনের কাছে সফলভাবে পাঠানো হয়েছে।", parse_mode="HTML")
+
+# ----------------------------------------------------
+# ৮. সাধারণ ইউজার মেসেজ হ্যান্ডলারস
 # ----------------------------------------------------
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -259,57 +352,6 @@ def send_welcome(message):
     db["ranges"].pop(chat_str, None)
     save_data()
     bot.send_message(chat_id, "👋 <b>Welcome back to HotOtp Bot</b>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
-
-@bot.message_handler(commands=['admin'])
-def admin_panel_cmd(message):
-    supp = get_setting("support", "@hototpotp")
-    rng = get_setting("range_group", "@hototprange")
-    otp = get_setting("otp_group", "@hototpotp")
-    
-    msg = (
-        "⚙️ <b>HOT OTP ADMIN PANEL</b> ⚙️\n\n"
-        f"💬 <b>Current Support:</b> <code>{supp}</code>\n"
-        f"📱 <b>Range Channel:</b> <code>{rng}</code>\n"
-        f"🔔 <b>OTP Group:</b> <code>{otp}</code>\n\n"
-        "📌 <b>বটের ভেতরে সেটিংস পরিবর্তন করার নিয়ম:</b>\n"
-        "• সাপোর্ট আইডি বদলাতে: <code>/setsupport @username</code>\n"
-        "• রেঞ্জ চ্যানেল বদলাতে: <code>/setrange @channel</code>\n"
-        "• ওটিপি গ্রুপ বদলাতে: <code>/setgroup @group</code>"
-    )
-    bot.reply_to(message, msg, parse_mode="HTML")
-
-@bot.message_handler(commands=['setsupport'])
-def set_support_cmd(message):
-    text = message.text.replace('/setsupport', '').strip()
-    if text:
-        if not text.startswith('@'): text = '@' + text
-        db["settings"]["support"] = text
-        save_data()
-        bot.reply_to(message, f"✅ সাপোর্ট ইউজারনেম সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
-    else:
-        bot.reply_to(message, "❌ ব্যবহার: <code>/setsupport @username</code>", parse_mode="HTML")
-
-@bot.message_handler(commands=['setrange'])
-def set_range_cmd(message):
-    text = message.text.replace('/setrange', '').strip()
-    if text:
-        if not text.startswith('@'): text = '@' + text
-        db["settings"]["range_group"] = text
-        save_data()
-        bot.reply_to(message, f"✅ রেঞ্জ চ্যানেল সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
-    else:
-        bot.reply_to(message, "❌ ব্যবহার: <code>/setrange @channel</code>", parse_mode="HTML")
-
-@bot.message_handler(commands=['setgroup'])
-def set_group_cmd(message):
-    text = message.text.replace('/setgroup', '').strip()
-    if text:
-        if not text.startswith('@'): text = '@' + text
-        db["settings"]["otp_group"] = text
-        save_data()
-        bot.reply_to(message, f"✅ ওটিপি গ্রুপ সেট হয়েছে: <code>{text}</code>", parse_mode="HTML")
-    else:
-        bot.reply_to(message, "❌ ব্যবহার: <code>/setgroup @group</code>", parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "☎️ Get Number" or m.text == "/number")
 def get_number_handler(message):
@@ -343,7 +385,6 @@ def other_handler(message):
 def home_handler(message):
     bot.send_message(message.chat.id, "👋 <b>Welcome to HotOtp Bot</b>", reply_markup=bottom_main_keyboard())
 
-# ১০০% আন্ডারস্কোর সেফ সাপোর্ট হ্যান্ডলার
 @bot.message_handler(func=lambda m: "Support" in m.text or "help" in m.text or m.text == "/help")
 def support_handler(message):
     supp = get_setting("support", "@hototpotp")
@@ -371,7 +412,7 @@ def fakename_handler(message):
     bot.send_message(message.chat.id, "👤 <b>Fake Name Generator:</b> John Doe", parse_mode="HTML")
 
 # ----------------------------------------------------
-# ৮. কলব্যাক হ্যান্ডলার (ইনলাইন বাটন)
+# ৯. কলব্যাক হ্যান্ডলার (ইনলাইন বাটন)
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
@@ -431,7 +472,7 @@ def process_save_range(message):
     bot.send_message(chat_id, f"✅ <b>রেঞ্জ সেভ হয়েছে:</b> <code>{text}</code>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
     fetch_and_send_number(chat_id, text)
 
-# নাম্বার ফানেল
+# নাম্বার সার্ভিস
 def fetch_and_send_number(chat_id, user_range, message_id=None):
     if not message_id:
         bot.send_message(chat_id, f"⏳ <code>{user_range}</code> রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="HTML")
@@ -490,7 +531,7 @@ def fetch_and_send_number(chat_id, user_range, message_id=None):
         bot.send_message(chat_id, f"❌ আসল সমস্যা: {e}")
 
 # ----------------------------------------------------
-# ৯. পোলিং চালু রাখা
+# ১০. পোলিং চালু রাখা
 # ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
