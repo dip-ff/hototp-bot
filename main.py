@@ -15,7 +15,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Number Masked Security Active!", 200
+    return "HotOtp Non-Stop Live Channel Poster Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -70,15 +70,6 @@ def save_data():
     except: pass
 
 db = load_data()
-
-# মাঝের ৪-৫ ডিজিট হাইড/মাস্ক করার সিকিউরিটি ফাংশন (যেমন: 23672****822)
-def mask_phone_number(number_str):
-    clean = str(number_str).replace("+", "").strip()
-    if len(clean) >= 10:
-        return clean[:5] + "****" + clean[-3:]
-    elif len(clean) >= 7:
-        return clean[:3] + "***" + clean[-2:]
-    return clean
 
 def is_admin(chat_id):
     if ADMIN_ID is None: return True
@@ -136,11 +127,11 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Number Masked Security Active!")
+print("🔥 HotOtp Non-Stop Channel Poster Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
-# ৫. সাইটের কনসোল লাইভ অটো-পোস্টার
+# ৫. সাইটের কনসোল লাইভ অটো-পোস্টার (Non-Stop Loop)
 # ----------------------------------------------------
 def fetch_all_site_logs():
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -162,10 +153,14 @@ def fetch_all_site_logs():
     return all_items
 
 def auto_post_live_ranges():
+    last_post_time = time.time()
+    
     while True:
         try:
             range_group = get_setting("range_group", "@hototprange")
             logs = fetch_all_site_logs()
+            posted_any = False
+
             if isinstance(logs, list) and len(logs) > 0:
                 for item in logs:
                     if not isinstance(item, dict): continue
@@ -177,9 +172,11 @@ def auto_post_live_ranges():
 
                     if not number or len(number) < 4: continue
                     sig = f"{number}_{service}_{country}_{sms_preview[:15]}_{time_id}"
+                    
                     if sig in posted_signatures: continue
+                    
                     posted_signatures.add(sig)
-                    if len(posted_signatures) > 1500: posted_signatures.clear()
+                    if len(posted_signatures) > 500: posted_signatures.clear()
 
                     raw_num = number.replace("+", "").strip()
                     if "XXX" in raw_num: range_str = raw_num
@@ -204,18 +201,56 @@ def auto_post_live_ranges():
 
                     try:
                         bot.send_message(range_group, post_text, reply_markup=markup, parse_mode="HTML")
-                        time.sleep(3)
+                        last_post_time = time.time()
+                        posted_any = True
+                        time.sleep(4)
                     except telebot.apihelper.ApiTelegramException as te:
                         if te.error_code == 429: time.sleep(20)
                     except Exception: time.sleep(3)
+
+            # 💡 যদি গত ২ মিনিট ধরে সাইটে নতুন কোনো ওটিপি না আসে, তবে সাইটের সক্রিয় রানিং রেঞ্জ রিফ্রেশ পোস্ট করবে
+            if not posted_any and (time.time() - last_post_time > 120) and isinstance(logs, list) and len(logs) > 0:
+                for item in logs:
+                    if isinstance(item, dict):
+                        number = str(item.get("number") or item.get("range") or "").strip()
+                        country = str(item.get("country") or "Global").strip()
+                        service = str(item.get("service") or "OTP Service").strip()
+                        if not number or len(number) < 4: continue
+                        
+                        raw_num = number.replace("+", "").strip()
+                        range_str = raw_num[:8] + "XXX" if len(raw_num) > 8 else raw_num + "XXX"
+                        
+                        post_text = (
+                            f"⚡ <b>HOT ACTIVE LIVE RANGE</b> ⚡\n\n"
+                            f"📱 <b>Range:</b> <code>{range_str}</code>\n"
+                            f"🎯 <b>Service:</b> {service}\n"
+                            f"🌐 <b>Country:</b> {country}\n"
+                            f"🔥 <b>Status:</b> Highly Active Range ⭐\n\n"
+                            f"👇 <b>১-ক্লিকে এই রেঞ্জ দিয়ে নাম্বার নিতে নিচে চাপ দিন:</b>"
+                        )
+                        markup = types.InlineKeyboardMarkup()
+                        markup.add(types.InlineKeyboardButton("🤖 HotOtp Bot-এ এই নাম্বার নিন", url=f"https://t.me/{BOT_USERNAME}?start={range_str}"))
+                        
+                        try:
+                            bot.send_message(range_group, post_text, reply_markup=markup, parse_mode="HTML")
+                            last_post_time = time.time()
+                        except Exception: pass
+                        break
+
         except Exception as e: print(f"Loop error: {e}")
-        time.sleep(8)
+        time.sleep(10)
 
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৬. ওটিপি ফিল্টার ও গ্রুপে নাম্বার হাইড করে অটো ফরোয়ার্ড
+# ৬. ওটিপি ফিল্টার
 # ----------------------------------------------------
+def mask_phone_number(number_str):
+    clean = str(number_str).replace("+", "").strip()
+    if len(clean) >= 10: return clean[:5] + "****" + clean[-3:]
+    elif len(clean) >= 7: return clean[:3] + "***" + clean[-2:]
+    return clean
+
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
     try:
@@ -248,14 +283,12 @@ def auto_check_otp(chat_id, num_id, number):
             db["total_otps"] = db.get("total_otps", 0) + 1
             save_data()
             
-            # ১. প্রাইভেট চ্যাটে ইউজারকে আসল সম্পূর্ণ নাম্বারসহ ওটিপি পাঠানো
             bot.send_message(chat_id, f"🎉 <b>ওটিপি চলে এসেছে!</b>\n\n{otp}", parse_mode="HTML")
             
-            # ২. পাবলিক ওটিপি গ্রুপে নাম্বার মাস্ক/হাইড করে (23672****822) পাঠানো
             try:
                 otp_grp = get_setting("otp_group", "@hototpotp")
                 raw_num = str(number).replace("+", "").strip()
-                masked_num = mask_phone_number(raw_num) # মাঝের ডিজিট হাইড
+                masked_num = mask_phone_number(raw_num)
                 
                 group_post = (
                     f"🎉 <b>NEW OTP SUCCESS HIT</b> 🎉\n\n"
@@ -269,9 +302,7 @@ def auto_check_otp(chat_id, num_id, number):
                 markup.add(btn_bot)
                 
                 bot.send_message(otp_grp, group_post, reply_markup=markup, parse_mode="HTML")
-            except Exception as ge:
-                print(f"Group forward error: {ge}")
-                
+            except Exception as ge: print(f"Group forward error: {ge}")
             return
 
 # ----------------------------------------------------
