@@ -15,7 +15,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Admin Settings Supported Panel Active!", 200
+    return "HotOtp Fully Fixed Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -67,6 +67,13 @@ def save_data():
     except: pass
 
 db = load_data()
+
+def get_setting(key, default_val):
+    try:
+        return db.get("settings", {}).get(key, default_val)
+    except:
+        return default_val
+
 posted_signatures = set()
 
 # কিবোর্ড বাটনের লিস্ট
@@ -96,7 +103,7 @@ except Exception as e:
     print(f"Commands set error: {e}")
 
 # ----------------------------------------------------
-# ৪. স্থায়ী নিচের কিবোর্ড বাটন (ব্যালেন্স ও উইথড্র রিমুভড)
+# ৪. স্থায়ী নিচের কিবোর্ড বাটন
 # ----------------------------------------------------
 def bottom_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
@@ -112,7 +119,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Dynamic Admin Settings Bot Active!")
+print("🔥 HotOtp Fixed & Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -140,7 +147,7 @@ def fetch_all_site_logs():
 def auto_post_live_ranges():
     while True:
         try:
-            range_group = db["settings"].get("range_group", "@hototprange")
+            range_group = get_setting("range_group", "@hototprange")
             logs = fetch_all_site_logs()
             if isinstance(logs, list) and len(logs) > 0:
                 for item in logs:
@@ -252,19 +259,21 @@ def send_welcome(message):
     save_data()
     bot.send_message(chat_id, "👋 **Welcome back to HotOtp Bot**", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
 
-# বটের ভেতরেই সরাসরি সেটিংস পরিবর্তন করার এডমিন প্যানেল
 @bot.message_handler(commands=['admin'])
 def admin_panel_cmd(message):
-    settings = db.get("settings", {})
+    supp = get_setting("support", "@hototpotp")
+    rng = get_setting("range_group", "@hototprange")
+    otp = get_setting("otp_group", "@hototpotp")
+    
     msg = (
         "⚙️ **HOT OTP ADMIN PANEL** ⚙️\n\n"
-        f"💬 **Current Support:** `{settings.get('support', '@hototpotp')}`\n"
-        f"📱 **Range Channel:** `{settings.get('range_group', '@hototprange')}`\n"
-        f"🔔 **OTP Group:** `{settings.get('otp_group', '@hototpotp')}`\n\n"
+        f"💬 **Current Support:** `{supp}`\n"
+        f"📱 **Range Channel:** `{rng}`\n"
+        f"🔔 **OTP Group:** `{otp}`\n\n"
         "📌 **বটের ভেতরে সেটিংস পরিবর্তন করার নিয়ম:**\n"
-        "• সাপোর্ট ইউজারনেম বদলাতে: `/setsupport @username`\n"
-        "• রেঞ্জ চ্যানেল ইউজারনেম বদলাতে: `/setrange @channel`\n"
-        "• ওটিপি গ্রুপ ইউজারনেম বদলাতে: `/setgroup @group`"
+        "• সাপোর্ট আইডি বদলাতে: `/setsupport @username`\n"
+        "• রেঞ্জ চ্যানেল বদলাতে: `/setrange @channel`\n"
+        "• ওটিপি গ্রুপ বদলাতে: `/setgroup @group`"
     )
     bot.reply_to(message, msg, parse_mode="Markdown")
 
@@ -275,9 +284,9 @@ def set_support_cmd(message):
         if not text.startswith('@'): text = '@' + text
         db["settings"]["support"] = text
         save_data()
-        bot.reply_to(message, f"✅ সাপোর্ট ইউজারনেম সফলভাবে সেট হয়েছে: `{text}`", parse_mode="Markdown")
+        bot.reply_to(message, f"✅ সাপোর্ট ইউজারনেম সেট হয়েছে: `{text}`", parse_mode="Markdown")
     else:
-        bot.reply_to(message, "❌ ব্যবহার করার সঠিক নিয়ম: `/setsupport @username`", parse_mode="Markdown")
+        bot.reply_to(message, "❌ ব্যবহার: `/setsupport @username`", parse_mode="Markdown")
 
 @bot.message_handler(commands=['setrange'])
 def set_range_cmd(message):
@@ -286,9 +295,9 @@ def set_range_cmd(message):
         if not text.startswith('@'): text = '@' + text
         db["settings"]["range_group"] = text
         save_data()
-        bot.reply_to(message, f"✅ লাইভ রেঞ্জ চ্যানেল ইউজারনেম সেট হয়েছে: `{text}`", parse_mode="Markdown")
+        bot.reply_to(message, f"✅ রেঞ্জ চ্যানেল সেট হয়েছে: `{text}`", parse_mode="Markdown")
     else:
-        bot.reply_to(message, "❌ ব্যবহার করার সঠিক নিয়ম: `/setrange @channel`", parse_mode="Markdown")
+        bot.reply_to(message, "❌ ব্যবহার: `/setrange @channel`", parse_mode="Markdown")
 
 @bot.message_handler(commands=['setgroup'])
 def set_group_cmd(message):
@@ -297,9 +306,9 @@ def set_group_cmd(message):
         if not text.startswith('@'): text = '@' + text
         db["settings"]["otp_group"] = text
         save_data()
-        bot.reply_to(message, f"✅ ওটিপি গ্রুপ ইউজারনেম সেট হয়েছে: `{text}`", parse_mode="Markdown")
+        bot.reply_to(message, f"✅ ওটিপি গ্রুপ সেট হয়েছে: `{text}`", parse_mode="Markdown")
     else:
-        bot.reply_to(message, "❌ ব্যবহার করার সঠিক নিয়ম: `/setgroup @group`", parse_mode="Markdown")
+        bot.reply_to(message, "❌ ব্যবহার: `/setgroup @group`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "☎️ Get Number" or m.text == "/number")
 def get_number_handler(message):
@@ -319,7 +328,7 @@ def change_range_handler(message):
 
 @bot.message_handler(func=lambda m: m.text == "📱 Range Group")
 def range_group_handler(message):
-    rg = db["settings"].get("range_group", "@hototprange")
+    rg = get_setting("range_group", "@hototprange")
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেলে যান", url=f"https://t.me/{rg.replace('@', '')}"))
     bot.send_message(message.chat.id, f"📢 **আমাদের লাইভ রেঞ্জ চ্যানেল:** {rg}\n\nনিচের বাটনে চাপ দিয়ে চ্যানেলে যুক্ত হন:", reply_markup=markup, parse_mode="Markdown")
@@ -332,12 +341,13 @@ def other_handler(message):
 def home_handler(message):
     bot.send_message(message.chat.id, "👋 **Welcome to HotOtp Bot**", reply_markup=bottom_main_keyboard())
 
-@bot.message_handler(func=lambda m: m.text == "💬 Support" or m.text == "/help")
+# ১০০% সচল এডমিন সাপোর্ট ফিচার
+@bot.message_handler(func=lambda m: "Support" in m.text or "help" in m.text or m.text == "/help")
 def support_handler(message):
-    supp = db["settings"].get("support", "@hototpotp")
+    supp = get_setting("support", "@hototpotp")
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("💬 এডমিন সাপোর্ট", url=f"https://t.me/{supp.replace('@', '')}"))
-    bot.send_message(message.chat.id, f"💬 **সহায়তার জন্য এডমিন চ্যাট:** {supp}", reply_markup=markup, parse_mode="Markdown")
+    markup.add(types.InlineKeyboardButton("💬 এডমিন সাপোর্ট (Contact Admin)", url=f"https://t.me/{supp.replace('@', '')}"))
+    bot.send_message(message.chat.id, f"💬 **সহায়তার জন্য এডমিন চ্যাট:** {supp}\n\nযেকোনো সমস্যায় এডমিনের সাথে যোগাযোগ করুন।", reply_markup=markup, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda m: m.text == "✉️ Get Tempmail" or m.text == "/tempmail")
 def tempmail_handler(message):
@@ -392,19 +402,19 @@ def callback_inline(call):
 def process_save_range(message):
     chat_id = message.chat.id
     chat_str = str(chat_id)
-    text = message.text.strip()
+    text = message.text.strip() if message.text else ""
     
     if text in MENU_BUTTONS or text.startswith("/"):
         bot.clear_step_handler_by_chat_id(chat_id)
-        if text == "📱 Range Group": range_group_handler(message)
-        elif text == "☎️ Get Number": get_number_handler(message)
-        elif text == "⚙️ Change Range": change_range_handler(message)
-        elif text == "🔽 OTHER": other_handler(message)
-        elif text == "🏠 Home": home_handler(message)
-        elif text == "💬 Support": support_handler(message)
-        elif text == "✉️ Get Tempmail": tempmail_handler(message)
-        elif text == "🔐 2FA": twofa_handler(message)
-        elif text == "👤 Fake Name": fakename_handler(message)
+        if "Range Group" in text: range_group_handler(message)
+        elif "Get Number" in text or text == "/number": get_number_handler(message)
+        elif "Change Range" in text or text == "/range": change_range_handler(message)
+        elif "OTHER" in text or text == "/other": other_handler(message)
+        elif "Home" in text or text == "/home": home_handler(message)
+        elif "Support" in text or "help" in text: support_handler(message)
+        elif "Tempmail" in text: tempmail_handler(message)
+        elif "2FA" in text: twofa_handler(message)
+        elif "Fake Name" in text: fakename_handler(message)
         return
 
     db["ranges"][chat_str] = text
@@ -412,7 +422,7 @@ def process_save_range(message):
     bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{text}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
     fetch_and_send_number(chat_id, text)
 
-# টাকা ও অপ্রয়োজনীয় টেক্সট মুক্ত ক্লিন সার্ভিস
+# ক্লিন নাম্বার সার্ভিস
 def fetch_and_send_number(chat_id, user_range, message_id=None):
     if not message_id:
         bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
@@ -429,8 +439,8 @@ def fetch_and_send_number(chat_id, user_range, message_id=None):
             num_id = res.get("number_id", "")
             raw_num = str(number).replace("+", "").strip()
 
-            otp_grp = db["settings"].get("otp_group", "@hototpotp")
-            rng_grp = db["settings"].get("range_group", "@hototprange")
+            otp_grp = get_setting("otp_group", "@hototpotp")
+            rng_grp = get_setting("range_group", "@hototprange")
 
             msg_text = (
                 f"✅ **Number:** 🌐 {country}\n\n"
