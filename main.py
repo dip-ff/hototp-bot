@@ -15,7 +15,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Deep Smart OTP Catcher Active!", 200
+    return "HotOtp Error Filtered Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -98,23 +98,43 @@ MENU_BUTTONS = [
 ]
 
 # ----------------------------------------------------
-# ৩. স্মার্ট ওটিপি এক্সট্রাক্টর (যে কোনো ফিল্ড থেকে কোড বের করবে)
+# ৩. স্মার্ট ওটিপি এক্সট্রাক্টর (এরর মেসেজ বাদ দেবে)
 # ----------------------------------------------------
+def is_valid_otp_str(s):
+    if not s or not isinstance(s, (str, int)):
+        return False
+    val = str(s).strip().lower()
+    if val in ["null", "none", "false", "true", "undefined", ""]:
+        return False
+    
+    # যেসব এরর লেখা আসলে স্কিপ করতে হবে
+    error_keywords = [
+        "endpoint not found", "not found", "error", "invalid", 
+        "no sms", "waiting", "failed", "unauthorized", "expired"
+    ]
+    for err in error_keywords:
+        if err in val:
+            return False
+    return True
+
 def extract_otp_smart(res_json):
-    if not res_json:
+    if not res_json or not isinstance(res_json, (dict, list)):
         return None
 
     if isinstance(res_json, dict):
+        if res_json.get("success") is False or str(res_json.get("success")).lower() == "false":
+            return None
+
         # ১. নির্দিষ্ট জানা কি (Keys) স্ক্যান করা
         for key in ['code', 'otp', 'sms', 'sms_code', 'data', 'message', 'text', 'full']:
             val = res_json.get(key)
-            if val is not None and str(val).strip() != "" and str(val).strip().lower() not in ["null", "none", "false"]:
+            if is_valid_otp_str(val):
                 return str(val).strip()
         
-        # ২. ডিকশনারির সব ফিল্ড চেক করা
+        # ২. ডিকশনারির অন্যান্য ফিল্ড চেক করা
         for k, v in res_json.items():
-            if k not in ['success', 'status', 'expires_in', 'number_id', 'id', 'country', 'number'] and v:
-                if isinstance(v, (str, int)) and str(v).strip() != "":
+            if k not in ['success', 'status', 'expires_in', 'number_id', 'id', 'country', 'number', 'error'] and v:
+                if is_valid_otp_str(v):
                     return str(v).strip()
                 elif isinstance(v, dict):
                     sub = extract_otp_smart(v)
@@ -124,7 +144,9 @@ def extract_otp_smart(res_json):
                     if sub: return sub
 
     elif isinstance(res_json, list) and len(res_json) > 0:
-        return extract_otp_smart(res_json[0])
+        for item in res_json:
+            sub = extract_otp_smart(item)
+            if sub: return sub
 
     return None
 
@@ -164,7 +186,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Smart Deep Catcher Active!")
+print("🔥 HotOtp Error Filtered Bot Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -278,16 +300,14 @@ def auto_post_live_ranges():
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৭. ১০০% গ্যারান্টেড ওটিপি ফিল্টার
+# ৭. ১০০% নিখুঁত ওটিপি ফিল্টার (এরর ফ্রি)
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
     
-    # পদ্ধতি ১: সকল ইঞ্জিনের সরাসরি নাম্বার ওটিপি চেক
+    # পদ্ধতি ১: নাম্বার ওটিপি চেক
     urls = [
         f"https://nexaotpservice.com/api/v1/numbers/{num_id}/sms",
-        f"https://nexaotpservice.com/api/v1/numbers/p2/{num_id}/sms",
-        f"https://nexaotpservice.com/api/v1/numbers/p3/{num_id}/sms",
         f"https://nexaotpservice.com/api/v1/sms/recent"
     ]
     
@@ -299,7 +319,7 @@ def fetch_otp(num_id, number):
                 return f"📩 <b>OTP Received:</b> <code>{found}</code>"
         except Exception: pass
 
-    # পদ্ধতি ২: সাইটের অল-ইঞ্জিন লগস থেকে ফোন নম্বর বা আইডি ম্যাচিং
+    # পদ্ধতি ২: কনসোল লগ থেকে ফোন নম্বর ম্যাচিং
     try:
         logs = fetch_all_site_logs()
         clean_target_num = str(number).replace("+", "").strip()
@@ -325,10 +345,8 @@ def auto_check_otp(chat_id, num_id, number):
             db["total_otps"] = db.get("total_otps", 0) + 1
             save_data()
             
-            # ১. ইউজারের ইনবক্সে সাথে সাথে মেসেজ পাঠানো
             bot.send_message(chat_id, f"🎉 <b>ওটিপি চলে এসেছে!</b>\n\n{otp}", parse_mode="HTML")
             
-            # ২. ওটিপি গ্রুপে অটো ফরোয়ার্ড করা (নাম্বার মাস্ক সহ)
             try:
                 otp_grp = get_setting("otp_group", "@hototpotp")
                 raw_num = str(number).replace("+", "").strip()
@@ -583,7 +601,7 @@ def process_save_range(message):
     bot.send_message(chat_id, f"✅ <b>রেঞ্জ সেভ হয়েছে:</b> <code>{text}</code>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
     fetch_and_send_number(chat_id, text)
 
-# নাম্বার ফানেল
+# নাম্বার সার্ভিস
 def fetch_and_send_number(chat_id, user_range, message_id=None):
     if not message_id:
         bot.send_message(chat_id, f"⏳ <code>{user_range}</code> রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="HTML")
