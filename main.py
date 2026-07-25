@@ -109,7 +109,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Smart Handler Bot Active!")
+print("🔥 HotOtp Smart In-Place Edit Bot Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -324,9 +324,11 @@ def callback_inline(call):
         msg = bot.send_message(chat_id, "আপনার পছন্দমতো রেঞ্জটি (Range) টাইপ করে পাঠান\n(যেমন: `224671808XXX`):", parse_mode="Markdown")
         bot.register_next_step_handler(msg, process_save_range)
 
+    # ইন-প্লেস মেসেজ এডিটিং (একই মেসেজেই নতুন নাম্বার নিয়ে আসবে)
     elif call.data == "get_num_auto":
         saved_r = db["ranges"].get(chat_str)
-        if saved_r: fetch_and_send_number(chat_id, saved_r)
+        if saved_r: 
+            fetch_and_send_number(chat_id, saved_r, message_id=call.message.message_id)
         else:
             msg = bot.send_message(chat_id, "আপনার কোনো রেঞ্জ সেট করা নেই। রেঞ্জ টাইপ করুন:")
             bot.register_next_step_handler(msg, process_save_range)
@@ -337,7 +339,6 @@ def callback_inline(call):
         if otp: bot.send_message(chat_id, f"📩 {otp}", parse_mode="Markdown")
         else: bot.answer_callback_query(call.id, text="এখনো ওটিপি আসেনি! ২-৩ সেকেন্ড পর আবার চাপুন...", show_alert=True)
 
-# স্মার্ট রেঞ্জ সেভার
 def process_save_range(message):
     chat_id = message.chat.id
     chat_str = str(chat_id)
@@ -362,9 +363,10 @@ def process_save_range(message):
     bot.send_message(chat_id, f"✅ **রেঞ্জ সেভ হয়েছে:** `{text}`", reply_markup=bottom_main_keyboard(), parse_mode="Markdown")
     fetch_and_send_number(chat_id, text)
 
-# ২টির সমস্যার সমাধানসহ নাম্বার ফানেল
-def fetch_and_send_number(chat_id, user_range):
-    bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
+# ইন-প্লেস এডিটিং সাপোর্টসহ নাম্বার সার্ভিস
+def fetch_and_send_number(chat_id, user_range, message_id=None):
+    if not message_id:
+        bot.send_message(chat_id, f"⏳ `{user_range}` রেঞ্জ দিয়ে নাম্বার নেওয়া হচ্ছে...", parse_mode="Markdown")
     
     url = "https://nexaotpservice.com/api/v1/numbers/get"
     headers = {"X-API-Key": NEXA_API_KEY, "Content-Type": "application/json"}
@@ -378,7 +380,6 @@ def fetch_and_send_number(chat_id, user_range):
             num_id = res.get("number_id", "")
             raw_num = str(number).replace("+", "").strip()
 
-            # ১-টাচ কপি টেক্সট ব্যাকটিকসহ
             msg_text = (
                 f"✅ **Number:** 🌐 {country} (0.20TK)\n\n"
                 f"👇 **নাম্বারটির ওপর এক চাপ দিলেই সরাসরি কপি হবে:**\n`{raw_num}`"
@@ -386,7 +387,6 @@ def fetch_and_send_number(chat_id, user_range):
             
             markup = types.InlineKeyboardMarkup(row_width=2)
             
-            # ১-টাচ বাটন
             try:
                 btn_num1 = types.InlineKeyboardButton(f"📋 📱 {raw_num}", copy_text=types.CopyTextButton(raw_num))
             except AttributeError:
@@ -395,7 +395,7 @@ def fetch_and_send_number(chat_id, user_range):
             btn_otp_group = types.InlineKeyboardButton("🔔 OTP GROUP", url=f"https://t.me/{OTP_GROUP.replace('@', '')}")
             btn_range_group = types.InlineKeyboardButton("📱 RANGE GROUP", url=f"https://t.me/{RANGE_GROUP.replace('@', '')}")
             
-            # Change Range বাদ দিয়ে "Change Number" (একই রেঞ্জ থেকে নতুন নাম্বার আনার বাটন)
+            # Change Number বাটন (একই মেসেজ এডিট করবে)
             btn_change_num = types.InlineKeyboardButton("🔄 Change Number", callback_data="get_num_auto")
             btn_refresh = types.InlineKeyboardButton("🔄 Refresh", callback_data=f"check_otp_{num_id}|{number}")
             btn_back = types.InlineKeyboardButton("⬅️ Back", callback_data="reset_all")
@@ -405,7 +405,15 @@ def fetch_and_send_number(chat_id, user_range):
             markup.add(btn_change_num, btn_refresh)
             markup.add(btn_back)
             
-            bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+            # যদি message_id পাওয়া যায়, তবে একই মেসেজ এডিট করবে
+            if message_id:
+                try:
+                    bot.edit_message_text(chat_id=chat_id, message_id=message_id, text=msg_text, reply_markup=markup, parse_mode="Markdown")
+                except Exception:
+                    bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+            else:
+                bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+                
             threading.Thread(target=auto_check_otp, args=(chat_id, num_id, number), daemon=True).start()
         else:
             bot.send_message(chat_id, f"❌ সমস্যা: {res.get('error')}", reply_markup=bottom_main_keyboard())
