@@ -4,6 +4,7 @@ import requests
 import threading
 import time
 import json
+import pyotp
 from flask import Flask
 from telebot import types
 
@@ -15,7 +16,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Fully Active & Secured!", 200
+    return "HotOtp 2FA Generator & Panel Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -34,10 +35,8 @@ threading.Thread(target=keep_alive_pinger, daemon=True).start()
 # ----------------------------------------------------
 # ২. বটের মূল তথ্য ও কনফিগারেশন
 # ----------------------------------------------------
-# ⚠️ আপনার @BotFather থেকে পাওয়া নতুন টোকেনটি এখানে বসাবেন
-BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8810955739:AAER3iDZeDClsCpdDJvAYcqQzFugGMxsUE4"
-
-NEXA_API_KEY = os.environ.get("NEXA_API_KEY") or "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e"
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8810955739:AAFEWvtxNCKFZXpPgv88zKdX-kJmoALnNis"  # আপনার আসল টেলিগ্রাম বট টোকেন
+NEXA_API_KEY = os.environ.get("NEXA_API_KEY") or "nxa_eb3fc88e55f657d69cd3c4aca3b69cce416dc84e" # আপনার NexaOTP এপিআই কি
 
 # ⚠️ এখানে /myid লিখে পাওয়া আপনার টেলিগ্রাম আইডি বসিয়ে দেবেন (যেমন: 123456789)
 ADMIN_ID = None  
@@ -142,8 +141,7 @@ try:
         types.BotCommand("home", "🏠 Home"),
         types.BotCommand("number", "☎️ Get Number"),
         types.BotCommand("range", "⚙️ Change Range"),
-        types.BotCommand("tempmail", "✉️ Get Tempmail"),
-        types.BotCommand("twofa", "🔐 2FA"),
+        types.BotCommand("twofa", "🔐 2FA Generator"),
         types.BotCommand("admin", "⚙️ Admin Panel"),
         types.BotCommand("help", "💬 Support"),
         types.BotCommand("other", "🔽 OTHER")
@@ -169,7 +167,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Bot Running Successfully!")
+print("🔥 HotOtp 2FA Generator Bot Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -342,7 +340,47 @@ def auto_check_otp(chat_id, num_id, number):
             return
 
 # ----------------------------------------------------
-# ৮. বট মেসেজ ও এডমিন প্যানেল হ্যান্ডলারস
+# ৮. ২FA কোড জেনারেটর প্রসেসিং হ্যান্ডলার
+# ----------------------------------------------------
+def process_2fa_key(message):
+    chat_id = message.chat.id
+    text = message.text.strip() if message.text else ""
+    
+    # যদি ইউজার ২FA কি না দিয়ে অন্য কোনো কিবোর্ড বাটন চেপে দেয়
+    if text in MENU_BUTTONS or text.startswith("/"):
+        bot.clear_step_handler_by_chat_id(chat_id)
+        if "Range Group" in text: range_group_handler(message)
+        elif "Get Number" in text or text == "/number": get_number_handler(message)
+        elif "Change Range" in text or text == "/range": change_range_handler(message)
+        elif "OTHER" in text or text == "/other": other_handler(message)
+        elif "Home" in text or text == "/home": home_handler(message)
+        elif "Support" in text or "help" in text: support_handler(message)
+        elif "2FA" in text: twofa_handler(message)
+        elif "Fake Name" in text: fakename_handler(message)
+        return
+
+    clean_key = text.replace(" ", "").replace("-", "").upper()
+    
+    try:
+        totp = pyotp.TOTP(clean_key)
+        code = totp.now() # ৬ ডিজিটের আসল ২FA কোড
+        
+        bot.send_message(
+            chat_id, 
+            f"🔐 <b>আপনার 2FA কোড:</b> <code>{code}</code>\n\n💡 <i>কোডের ওপর চাপ দিলে কপি হয়ে যাবে!</i>", 
+            reply_markup=bottom_main_keyboard(), 
+            parse_mode="HTML"
+        )
+    except Exception:
+        bot.send_message(
+            chat_id, 
+            "❌ <b>ভুল 2FA Secret Key!</b> দয়া করে সঠিক Base32 সিক্রেট কি লিখে পাঠান।", 
+            reply_markup=bottom_main_keyboard(), 
+            parse_mode="HTML"
+        )
+
+# ----------------------------------------------------
+# ৯. বট মেসেজ ও এডমিন প্যানেল হ্যান্ডলারস
 # ----------------------------------------------------
 @bot.message_handler(commands=['myid'])
 def my_id_command(message):
@@ -415,7 +453,7 @@ def broadcast_command(message):
     bot.send_message(message.chat.id, f"✅ ব্রডকাস্ট সম্পন্ন হয়েছে!\nমোট <code>{success_count}</code> জনের কাছে পাঠানো হয়েছে।", parse_mode="HTML")
 
 # ----------------------------------------------------
-# ৯. সাধারণ ইউজার মেসেজ হ্যান্ডলারস
+# ১০. সাধারণ ইউজার মেসেজ হ্যান্ডলারস
 # ----------------------------------------------------
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -464,6 +502,11 @@ def range_group_handler(message):
     markup.add(types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেলে যান", url=f"https://t.me/{clean_url}"))
     bot.send_message(message.chat.id, f"📢 <b>আমাদের লাইভ রেঞ্জ চ্যানেল:</b> {rg}\n\nনিচের বাটনে চাপ দিয়ে চ্যানেলে যুক্ত হন:", reply_markup=markup, parse_mode="HTML")
 
+@bot.message_handler(func=lambda m: m.text == "🔐 2FA" or m.text == "/twofa")
+def twofa_handler(message):
+    msg = bot.send_message(message.chat.id, "🔐 আপনার <b>2FA Secret Key</b> টি পাঠান\n(যেমন: <code>SPG3WZ5AD...</code>):", parse_mode="HTML")
+    bot.register_next_step_handler(msg, process_2fa_key)
+
 @bot.message_handler(func=lambda m: m.text == "🔽 OTHER" or m.text == "/other")
 def other_handler(message):
     bot.send_message(message.chat.id, "📋 <b>OTHER OPTIONS</b>\n\nনিচের অপশন থেকে সিলেক্ট করুন:", reply_markup=bottom_other_keyboard(), parse_mode="HTML")
@@ -478,28 +521,18 @@ def support_handler(message):
     clean_supp = supp.replace('@', '')
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("💬 এডমিন সাপোর্ট (Contact Admin)", url=f"https://t.me/{clean_supp}"))
-    
-    bot.send_message(
-        message.chat.id, 
-        f"💬 <b>সহায়তার জন্য এডমিন চ্যাট:</b> <code>{supp}</code>\n\nযেকোনো সমস্যায় এডমিনের সাথে যোগাযোগ করুন।", 
-        reply_markup=markup, 
-        parse_mode="HTML"
-    )
+    bot.send_message(message.chat.id, f"💬 <b>সহায়তার জন্য এডমিন চ্যাট:</b> <code>{supp}</code>\n\nযেকোনো সমস্যায় এডমিনের সাথে যোগাযোগ করুন।", reply_markup=markup, parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "✉️ Get Tempmail" or m.text == "/tempmail")
 def tempmail_handler(message):
     bot.send_message(message.chat.id, "✉️ <b>Tempmail Feature:</b> শীঘ্রই আসছে!", parse_mode="HTML")
-
-@bot.message_handler(func=lambda m: m.text == "🔐 2FA" or m.text == "/twofa")
-def twofa_handler(message):
-    bot.send_message(message.chat.id, "🔐 <b>2FA Code Generator:</b> শীঘ্রই আসছে!", parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "👤 Fake Name")
 def fakename_handler(message):
     bot.send_message(message.chat.id, "👤 <b>Fake Name Generator:</b> John Doe", parse_mode="HTML")
 
 # ----------------------------------------------------
-# ১০. কলব্যাক হ্যান্ডলার (ইনলাইন বাটন)
+# ১১. কলব্যাক হ্যান্ডলার (ইনলাইন বাটন)
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
@@ -554,7 +587,6 @@ def process_save_range(message):
         elif "OTHER" in text or text == "/other": other_handler(message)
         elif "Home" in text or text == "/home": home_handler(message)
         elif "Support" in text or "help" in text: support_handler(message)
-        elif "Tempmail" in text: tempmail_handler(message)
         elif "2FA" in text: twofa_handler(message)
         elif "Fake Name" in text: fakename_handler(message)
         return
@@ -623,7 +655,7 @@ def fetch_and_send_number(chat_id, user_range, message_id=None):
         bot.send_message(chat_id, f"❌ আসল সমস্যা: {e}")
 
 # ----------------------------------------------------
-# ১১. পোলিং চালু রাখা
+# ১২. পোলিং চালু রাখা
 # ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
