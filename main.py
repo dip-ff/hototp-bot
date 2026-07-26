@@ -16,7 +16,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp 2FA Generator & Panel Active!", 200
+    return "HotOtp Strict Validation Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -99,37 +99,63 @@ MENU_BUTTONS = [
 ]
 
 # ----------------------------------------------------
-# ৩. স্মার্ট ওটিপি এক্সট্রাক্টর
+# ৩. ১০০% নিখুঁত ওটিপি কোড ফিল্টার (২০ বা ২-৩ ডিজিট বাদ দেবে)
 # ----------------------------------------------------
 def is_valid_otp_str(s):
-    if not s or not isinstance(s, (str, int)): return False
+    if not s or not isinstance(s, (str, int)):
+        return False
     val = str(s).strip().lower()
-    if val in ["null", "none", "false", "true", "undefined", ""]: return False
-    error_keywords = ["endpoint not found", "not found", "error", "invalid", "no sms", "waiting", "failed", "unauthorized", "expired"]
+    
+    if val in ["null", "none", "false", "true", "undefined", ""]:
+        return False
+    
+    error_keywords = [
+        "endpoint not found", "not found", "error", "invalid", 
+        "no sms", "waiting", "failed", "unauthorized", "expired",
+        "allocated", "success", "ok", "pending"
+    ]
     for err in error_keywords:
-        if err in val: return False
+        if err in val:
+            return False
+
+    # 💡 যদি শুধু সংখ্যা হয়, তবে তা অবশ্যই ৪ থেকে ৮ ডিজিটের আসল ওটিপি হতে হবে (২০ বা ২০০ জাতীয় স্ট্যাটাস বাদ যাবে)
+    if val.isdigit():
+        if len(val) < 4 or len(val) > 8:
+            return False
+
     return True
 
 def extract_otp_smart(res_json):
-    if not res_json or not isinstance(res_json, (dict, list)): return None
+    if not res_json or not isinstance(res_json, (dict, list)):
+        return None
+
     if isinstance(res_json, dict):
-        if res_json.get("success") is False or str(res_json.get("success")).lower() == "false": return None
+        if res_json.get("success") is False or str(res_json.get("success")).lower() == "false":
+            return None
+
+        # ১. নির্দিষ্ট জানা কি (Keys) স্ক্যান করা
         for key in ['code', 'otp', 'sms', 'sms_code', 'data', 'message', 'text', 'full']:
             val = res_json.get(key)
-            if is_valid_otp_str(val): return str(val).strip()
+            if is_valid_otp_str(val):
+                return str(val).strip()
+        
+        # ২. ডিকশনারির অন্যান্য ফিল্ড চেক করা
         for k, v in res_json.items():
-            if k not in ['success', 'status', 'expires_in', 'number_id', 'id', 'country', 'number', 'error'] and v:
-                if is_valid_otp_str(v): return str(v).strip()
+            if k not in ['success', 'status', 'expires_in', 'number_id', 'id', 'country', 'number', 'error', 'limit', 'count'] and v:
+                if is_valid_otp_str(v):
+                    return str(v).strip()
                 elif isinstance(v, dict):
                     sub = extract_otp_smart(v)
                     if sub: return sub
                 elif isinstance(v, list) and len(v) > 0:
                     sub = extract_otp_smart(v[0])
                     if sub: return sub
+
     elif isinstance(res_json, list) and len(res_json) > 0:
         for item in res_json:
             sub = extract_otp_smart(item)
             if sub: return sub
+
     return None
 
 # ----------------------------------------------------
@@ -141,6 +167,7 @@ try:
         types.BotCommand("home", "🏠 Home"),
         types.BotCommand("number", "☎️ Get Number"),
         types.BotCommand("range", "⚙️ Change Range"),
+        types.BotCommand("tempmail", "✉️ Get Tempmail"),
         types.BotCommand("twofa", "🔐 2FA Generator"),
         types.BotCommand("admin", "⚙️ Admin Panel"),
         types.BotCommand("help", "💬 Support"),
@@ -167,7 +194,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp 2FA Generator Bot Active!")
+print("🔥 HotOtp Strict Validation Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -310,7 +337,7 @@ def fetch_otp(num_id, number):
     return None
 
 def auto_check_otp(chat_id, num_id, number):
-    for _ in range(60):
+    for _ in range(60): # ৩ মিনিট ব্যাকগ্রাউন্ডে চেক করবে
         time.sleep(3)
         otp = fetch_otp(num_id, number)
         if otp:
@@ -340,13 +367,12 @@ def auto_check_otp(chat_id, num_id, number):
             return
 
 # ----------------------------------------------------
-# ৮. ২FA কোড জেনারেটর প্রসেসিং হ্যান্ডলার
+# ৮. ২FA কোড জেনারেটর প্রসেসিং
 # ----------------------------------------------------
 def process_2fa_key(message):
     chat_id = message.chat.id
     text = message.text.strip() if message.text else ""
     
-    # যদি ইউজার ২FA কি না দিয়ে অন্য কোনো কিবোর্ড বাটন চেপে দেয়
     if text in MENU_BUTTONS or text.startswith("/"):
         bot.clear_step_handler_by_chat_id(chat_id)
         if "Range Group" in text: range_group_handler(message)
@@ -363,8 +389,7 @@ def process_2fa_key(message):
     
     try:
         totp = pyotp.TOTP(clean_key)
-        code = totp.now() # ৬ ডিজিটের আসল ২FA কোড
-        
+        code = totp.now()
         bot.send_message(
             chat_id, 
             f"🔐 <b>আপনার 2FA কোড:</b> <code>{code}</code>\n\n💡 <i>কোডের ওপর চাপ দিলে কপি হয়ে যাবে!</i>", 
@@ -502,18 +527,13 @@ def range_group_handler(message):
     markup.add(types.InlineKeyboardButton("📱 লাইভ রেঞ্জ চ্যানেলে যান", url=f"https://t.me/{clean_url}"))
     bot.send_message(message.chat.id, f"📢 <b>আমাদের লাইভ রেঞ্জ চ্যানেল:</b> {rg}\n\nনিচের বাটনে চাপ দিয়ে চ্যানেলে যুক্ত হন:", reply_markup=markup, parse_mode="HTML")
 
-@bot.message_handler(func=lambda m: m.text == "🔐 2FA" or m.text == "/twofa")
-def twofa_handler(message):
-    msg = bot.send_message(message.chat.id, "🔐 আপনার <b>2FA Secret Key</b> টি পাঠান\n(যেমন: <code>SPG3WZ5AD...</code>):", parse_mode="HTML")
-    bot.register_next_step_handler(msg, process_2fa_key)
-
 @bot.message_handler(func=lambda m: m.text == "🔽 OTHER" or m.text == "/other")
 def other_handler(message):
     bot.send_message(message.chat.id, "📋 <b>OTHER OPTIONS</b>\n\nনিচের অপশন থেকে সিলেক্ট করুন:", reply_markup=bottom_other_keyboard(), parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: m.text == "🏠 Home" or m.text == "/home")
 def home_handler(message):
-    bot.send_message(message.chat.id, "👋 <b>Welcome to HotOtp Bot</b>", reply_markup=bottom_main_keyboard())
+    bot.send_message(message.chat.id, "👋 <b>Welcome to HotOtp Bot</b>", reply_markup=bottom_main_keyboard(), parse_mode="HTML")
 
 @bot.message_handler(func=lambda m: "Support" in m.text or "help" in m.text or m.text == "/help")
 def support_handler(message):
@@ -526,6 +546,11 @@ def support_handler(message):
 @bot.message_handler(func=lambda m: m.text == "✉️ Get Tempmail" or m.text == "/tempmail")
 def tempmail_handler(message):
     bot.send_message(message.chat.id, "✉️ <b>Tempmail Feature:</b> শীঘ্রই আসছে!", parse_mode="HTML")
+
+@bot.message_handler(func=lambda m: m.text == "🔐 2FA" or m.text == "/twofa")
+def twofa_handler(message):
+    msg = bot.send_message(message.chat.id, "🔐 আপনার <b>2FA Secret Key</b> টি পাঠান\n(যেমন: <code>SPG3WZ5AD...</code>):", parse_mode="HTML")
+    bot.register_next_step_handler(msg, process_2fa_key)
 
 @bot.message_handler(func=lambda m: m.text == "👤 Fake Name")
 def fakename_handler(message):
