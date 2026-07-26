@@ -16,7 +16,7 @@ RENDER_URL = "https://hototp-bot-3.onrender.com"
 
 @app.route('/')
 def home():
-    return "HotOtp Ultra Strict Validation Active!", 200
+    return "HotOtp Time-Filter Active!", 200
 
 def run_web():
     port = int(os.environ.get('PORT', 10000))
@@ -99,7 +99,7 @@ MENU_BUTTONS = [
 ]
 
 # ----------------------------------------------------
-# ৩. আল্ট্রা-স্ট্রিক্ট ওটিপি ফিল্টার (২০ বা টাইমার বাদ দেবে)
+# ৩. পারফেক্ট ওটিপি ফিল্টার (তারিখ, সময় ও ফেক টেক্সট ব্লক করবে)
 # ----------------------------------------------------
 def is_valid_otp_str(s):
     if not s or not isinstance(s, (str, int)):
@@ -112,25 +112,28 @@ def is_valid_otp_str(s):
     if val_lower in ["null", "none", "false", "true", "undefined", "", "0"]:
         return False
         
-    # ২. এরর বা টাইমার কিওয়ার্ড বাদ দেওয়া
+    # ২. তারিখ বা টাইমস্ট্যাম্প বাদ দেওয়া (যেমন: "2026-07-26 10:33:20")
+    if "202" in val and ("-" in val or ":" in val):
+        return False
+    if val.count("-") >= 2 and val.count(":") >= 1:
+        return False
+        
+    # ৩. এরর বা স্ট্যাটাস কিওয়ার্ড বাদ দেওয়া
     error_keywords = [
         "endpoint", "not found", "error", "invalid", "no sms", 
         "waiting", "failed", "unauthorized", "expired", "allocated", 
-        "success", "ok", "pending", "sec", "min", "limit"
+        "success", "ok", "pending", "sec", "min", "limit", "created"
     ]
     for err in error_keywords:
         if err in val_lower:
             return False
 
-    # ৩. যদি শুধু সংখ্যা হয়, তবে তা অবশ্যই ৪ থেকে ৮ ডিজিটের হতে হবে (যেমন: 720645 বা 95245)
+    # ৪. যদি শুধু সংখ্যা হয়, তবে তা ৪ থেকে ৮ ডিজিটের আসল ওটিপি হতে হবে
     if val.isdigit():
-        if 4 <= len(val) <= 8:
-            return True
-        else:
-            return False
+        return 4 <= len(val) <= 8
 
-    # ৪. যদি বড় টেক্সট মেসেজ হয় (যেমন: "Your code is 123456")
-    if len(val) >= 10:
+    # ৫. যদি বড় এসএমএস টেক্সট হয় (কমপক্ষে ১০ অক্ষর এবং সংখ্যা থাকতে হবে)
+    if len(val) >= 10 and any(char.isdigit() for char in val):
         return True
 
     return False
@@ -139,19 +142,26 @@ def extract_otp_smart(res_json):
     if not res_json or not isinstance(res_json, (dict, list)):
         return None
 
+    # ইগনোর করার মতো এপিআই কি (Keys)
+    EXCLUDED_KEYS = [
+        'success', 'status', 'expires_in', 'number_id', 'id', 'country', 
+        'number', 'error', 'limit', 'count', 'hits', 'age', 'ttl', 
+        'time', 'created_at', 'timestamp', 'date', 'updated_at'
+    ]
+
     if isinstance(res_json, dict):
         if res_json.get("success") is False or str(res_json.get("success")).lower() == "false":
             return None
 
-        # ১. নির্দিষ্ট জানা কি (Keys) স্ক্যান করা
+        # ১. নির্দিষ্ট জানা ওটিপি কি (Keys) স্ক্যান করা
         for key in ['code', 'otp', 'sms', 'sms_code', 'data', 'message', 'text', 'full']:
             val = res_json.get(key)
             if is_valid_otp_str(val):
                 return str(val).strip()
         
-        # ২. ডিকশনারির অন্যান্য ফিল্ড চেক করা (limit, count, hits বাদ দেওয়া হয়েছে)
+        # ২. ডিকশনারির অন্যান্য ফিল্ড চেক করা
         for k, v in res_json.items():
-            if k not in ['success', 'status', 'expires_in', 'number_id', 'id', 'country', 'number', 'error', 'limit', 'count', 'hits', 'age', 'ttl'] and v:
+            if k not in EXCLUDED_KEYS and v:
                 if is_valid_otp_str(v):
                     return str(v).strip()
                 elif isinstance(v, dict):
@@ -204,7 +214,7 @@ def bottom_other_keyboard():
     return markup
 
 print("---------------------------------")
-print("🔥 HotOtp Strict Validation Active!")
+print("🔥 HotOtp Time-Filtered Bot Active!")
 print("---------------------------------")
 
 # ----------------------------------------------------
@@ -318,7 +328,7 @@ def auto_post_live_ranges():
 threading.Thread(target=auto_post_live_ranges, daemon=True).start()
 
 # ----------------------------------------------------
-# ৭. নিখুঁত ওটিপি চেক
+# ৭. ওটিপি চেক
 # ----------------------------------------------------
 def fetch_otp(num_id, number):
     headers = {"X-API-Key": NEXA_API_KEY}
@@ -361,10 +371,10 @@ def auto_check_otp(chat_id, num_id, number):
             db["total_otps"] = db.get("total_otps", 0) + 1
             save_data()
             
-            # ১. প্রাইভেট চ্যাটে আসল ওটিপি পাঠানো
+            # ১. ইউজারের ইনবক্সে ওটিপি পাঠানো
             bot.send_message(chat_id, f"🎉 <b>ওটিপি চলে এসেছে!</b>\n\n{otp}", parse_mode="HTML")
             
-            # ২. ওটিপি গ্রুপে অটো ফরোয়ার্ড করা
+            # ২. ওটিপি গ্রুপে অটো ফরোয়ার্ড
             try:
                 otp_grp = get_setting("otp_group", "@hototpotp")
                 raw_num = str(number).replace("+", "").strip()
@@ -699,7 +709,7 @@ def fetch_and_send_number(chat_id, user_range, message_id=None):
         bot.send_message(chat_id, f"❌ আসল সমস্যা: {e}")
 
 # ----------------------------------------------------
-# ১০. পোলিং চালু রাখা
+# ১২. পোলিং চালু রাখা
 # ----------------------------------------------------
 try:
     bot.polling(none_stop=True, interval=0)
