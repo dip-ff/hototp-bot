@@ -3,7 +3,7 @@ from telebot import types
 import requests
 
 # ----------------- আপনার কনফিগারেশন -----------------
-BOT_TOKEN = "8810955739:AAER3iDZeDClsCpdDJvAYcqQzFugGMxsUE4"
+BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q"
 API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
 GRIZZLY_API_URL = "https://api.grizzlysms.com/stubs/handler_api.php"
 # -----------------------------------------------
