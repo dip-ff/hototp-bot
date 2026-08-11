@@ -20,7 +20,7 @@ Thread(target=run_flask).start()
 # -----------------------------
 
 # ----------------- কনফিগারেশন -----------------
-BOT_TOKEN = "8810955739:AAER3iDZeDClsCpdDJvAYcqQzFugGMxsUE4"
+BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q"
 API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
 # আপনার স্ক্রিনশট অনুযায়ী SmsBower-এর আসল লিংক:
 SMS_BOWER_API = "https://smsbower.page/stubs/handler_api.php"
