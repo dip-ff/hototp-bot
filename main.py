@@ -1,12 +1,30 @@
 import telebot
 from telebot import types
 import requests
+import os
+from flask import Flask
+from threading import Thread
+
+# ---- Render Port Binding-এর জন্য Flask সার্ভার ----
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running live!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+# ব্যাকগ্রাউন্ডে Flask চালু করা
+Thread(target=run_flask).start()
+# ---------------------------------------------------
 
 # ----------------- আপনার কনফিগারেশন -----------------
 BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q"
 API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
 GRIZZLY_API_URL = "https://api.grizzlysms.com/stubs/handler_api.php"
-# -----------------------------------------------
+# ---------------------------------------------------
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -32,7 +50,6 @@ def handle_buttons(message):
     chat_id = message.chat.id
     text = message.text
 
-    # ১. ব্যালেন্স চেক
     if text == "💰 ব্যালেন্স দেখুন":
         bot.send_message(chat_id, "⏳ ব্যালেন্স চেক করা হচ্ছে...")
         try:
@@ -45,7 +62,6 @@ def handle_buttons(message):
         except Exception as e:
             bot.send_message(chat_id, "❌ সার্ভারে কানেক্ট করতে সমস্যা হয়েছে।")
 
-    # ২. সার্ভিস চয়েস
     elif text == "📱 নাম্বার কিনুন":
         markup = types.InlineKeyboardMarkup()
         btn_tg = types.InlineKeyboardButton("Telegram (tg)", callback_data="buy_tg")
@@ -62,13 +78,11 @@ def handle_buttons(message):
 def callback_inline(call):
     chat_id = call.message.chat.id
     
-    # নাম্বার কেনা
     if call.data.startswith("buy_"):
         service = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "নাম্বার রিকোয়েস্ট করা হচ্ছে...")
         
         try:
-            # USA (Country Code: 187) নাম্বার রিকোয়েস্ট
             res = requests.get(GRIZZLY_API_URL, params={
                 "api_key": API_KEY,
                 "action": "getNumber",
@@ -99,7 +113,6 @@ def callback_inline(call):
         except Exception as e:
             bot.send_message(chat_id, "❌ নেটওয়ার্ক ত্রুটি।")
 
-    # OTP কোড চেক
     elif call.data.startswith("check_"):
         act_id = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "SMS চেক করা হচ্ছে...")
@@ -115,13 +128,12 @@ def callback_inline(call):
                 code = res.text.split(":")[1]
                 bot.send_message(chat_id, f"🎉 **আপনার OTP কোড:** `{code}`", parse_mode="Markdown")
             elif "STATUS_WAIT_CODE" in res.text:
-                bot.send_message(chat_id, "⏳ এখনো কোনো SMS আসেনি। কিছুক্ষণ পর আবার চেষ্টা করুন।")
+                bot.send_message(chat_id, "⏳ এখনো কোনো SMS আসেনি। আবার চেষ্টা করুন।")
             else:
                 bot.send_message(chat_id, f"স্ট্যাটাস: {res.text}")
         except Exception as e:
             bot.send_message(chat_id, "❌ চেক করতে সমস্যা হয়েছে।")
 
-    # অর্ডার ক্যানসেল
     elif call.data.startswith("cancel_"):
         act_id = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "ক্যানসেল করা হচ্ছে...")
