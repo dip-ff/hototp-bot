@@ -20,7 +20,7 @@ Thread(target=run_flask).start()
 # -----------------------------
 
 # ----------------- কনফিগারেশন -----------------
-BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q" # আপনার রিয়েল বটের টোকেন বসাবেন
+BOT_TOKEN = "" # আপনার রিয়েল বটের টোকেন বসাবেন
 API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
 SMS_BOWER_API = "https://smsbower.page/stubs/handler_api.php"
 # -----------------------------------------------
