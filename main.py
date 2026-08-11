@@ -20,12 +20,12 @@ Thread(target=run_flask).start()
 # -----------------------------
 
 # ----------------- কনফিগারেশন -----------------
-BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q" # @BotFather থেকে পাওয়া টোকেন
+BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q" # আপনার রিয়েল বটের টোকেন বসাবেন
 API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
 SMS_BOWER_API = "https://smsbower.page/stubs/handler_api.php"
 # -----------------------------------------------
 
-# দেশের কোডের সাথে দেশের নাম ও পতাকার ম্যাপ
+# প্রায় সব দেশের আইডি অনুযায়ী আসল নাম ও পতাকা
 COUNTRY_NAMES = {
     "0": "🇷🇺 Russia",
     "1": "🇺🇦 Ukraine",
@@ -35,15 +35,39 @@ COUNTRY_NAMES = {
     "5": "🇲🇲 Myanmar",
     "6": "🇮🇩 Indonesia",
     "7": "🇲🇾 Malaysia",
+    "8": "🇰🇭 Cambodia",
+    "9": "🇱АО Laos",
+    "10": "🇻🇳 Vietnam",
     "11": "🇬🇧 UK",
-    "12": "🇻🇳 Vietnam",
+    "12": "🇹🇭 Thailand",
     "13": "🇰🇬 Kyrgyzstan",
+    "14": "🇺🇿 Uzbekistan",
     "15": "🇵🇱 Poland",
+    "16": "🇸🇪 Sweden",
+    "18": "🇩🇪 Germany",
     "19": "🇳🇬 Nigeria",
+    "21": "🇪🇬 Egypt",
     "22": "🇮🇳 India",
+    "23": "🇮🇪 Ireland",
+    "24": "🇰🇷 South Korea",
+    "25": "🇦🇫 Afghanistan",
+    "26": "🇨🇴 Colombia",
+    "27": "🇵🇰 Pakistan",
+    "28": "🇦🇱 Albania",
+    "29": "🇩🇿 Algeria",
+    "31": "🇿🇦 South Africa",
     "32": "🇷🇴 Romania",
     "36": "🇨🇦 Canada",
+    "58": "🇲🇽 Mexico",
     "60": "🇧🇩 Bangladesh",
+    "66": "🇹🇭 Thailand",
+    "71": "🇫🇷 France",
+    "73": "🇧🇷 Brazil",
+    "76": "🇪🇸 Spain",
+    "79": "🇲🇦 Morocco",
+    "80": "🇬🇭 Ghana",
+    "138": "🇰🇪 Kenya",
+    "147": "🇵🇪 Peru",
     "187": "🇺🇸 USA"
 }
 
@@ -84,7 +108,7 @@ def handle_buttons(message):
         except Exception as e:
             bot.send_message(chat_id, "❌ সার্ভারে কানেক্ট করতে সমস্যা হয়েছে।")
 
-    # ২. সার্ভিস চয়েস (এখানে ফেসবুক সহ অন্যান্য সার্ভিস যোগ করা হয়েছে)
+    # ২. সার্ভিস চয়েস
     elif text == "📱 নাম্বার কিনুন":
         markup = types.InlineKeyboardMarkup(row_width=2)
         btn_fb = types.InlineKeyboardButton("🔵 Facebook (fb)", callback_data="service_fb")
@@ -100,18 +124,17 @@ def handle_buttons(message):
     elif text == "❓ সাহায্য":
         bot.send_message(chat_id, "সহায়তার জন্য অ্যাডমিনের সাথে যোগাযোগ করুন।")
 
-# ইনলাইন বাটন হ্যান্ডলার (ডায়নামিক কান্ট্রি, প্রাইস ও স্টক লোড)
+# ইনলাইন বাটন হ্যান্ডলার
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     chat_id = call.message.chat.id
     
-    # সার্ভিস পছন্দ করার পর সাইট থেকে লাইভ দাম ও স্টক নিয়ে আসার অংশ
+    # সার্ভিস পছন্দ করার পর সাইট থেকে লাইভ দাম ও স্টক লোড
     if call.data.startswith("service_"):
         service = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "সাইট থেকে দাম ও স্টক লোড করা হচ্ছে...")
         
         try:
-            # সাইটের getPrices API থেকে লাইভ রেট নিয়ে আসা
             res = requests.get(SMS_BOWER_API, params={
                 "api_key": API_KEY,
                 "action": "getPrices",
@@ -122,13 +145,11 @@ def callback_inline(call):
             markup = types.InlineKeyboardMarkup(row_width=1)
             count = 0
             
-            # ডাটা প্রসেস করে দেশের বাটন তৈরি
             for country_id, services in data.items():
                 if service in services:
                     price = services[service].get("cost") or services[service].get("price") or "N/A"
                     qty = services[service].get("count") or 0
                     
-                    # শুধু যে দেশে স্টক আছে সেগুলো দেখাবে
                     if int(qty) > 0:
                         c_name = COUNTRY_NAMES.get(str(country_id), f"Country #{country_id}")
                         btn_text = f"{c_name} — ${price} (স্টক: {qty} টি)"
@@ -136,7 +157,7 @@ def callback_inline(call):
                         markup.add(btn)
                         count += 1
                         
-                        if count >= 15: # বেশি বড় লিস্ট যাতে না হয় তাই টপ ১৫টি দেশ দেখাবে
+                        if count >= 15:
                             break
             
             if count == 0:
@@ -152,7 +173,7 @@ def callback_inline(call):
         except Exception as e:
             bot.send_message(chat_id, "❌ সাইট থেকে প্রাইস লোড করতে সমস্যা হয়েছে।")
 
-    # নির্দিষ্ট দেশের ওপর ক্লিক করলে ওই নাম্বারটি ক্রয় করা
+    # নাম্বার কেনা
     elif call.data.startswith("buy_"):
         parts = call.data.split("_")
         service = parts[1]
