@@ -5,26 +5,26 @@ import os
 from flask import Flask
 from threading import Thread
 
-# ---- Render Port Binding-এর জন্য Flask সার্ভার ----
+# ---- Render Port Binding ----
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot is running live!"
+    return "SmsBower Bot is Running Live!"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# ব্যাকগ্রাউন্ডে Flask চালু করা
 Thread(target=run_flask).start()
-# ---------------------------------------------------
+# -----------------------------
 
-# ----------------- আপনার কনফিগারেশন -----------------
-BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q"
+# ----------------- কনফিগারেশন -----------------
+BOT_TOKEN = "8810955739:AAER3iDZeDClsCpdDJvAYcqQzFugGMxsUE4"
 API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
-GRIZZLY_API_URL = "https://api.grizzlysms.com/stubs/handler_api.php"
-# ---------------------------------------------------
+# আপনার স্ক্রিনশট অনুযায়ী SmsBower-এর আসল লিংক:
+SMS_BOWER_API = "https://smsbower.page/stubs/handler_api.php"
+# -----------------------------------------------
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -39,7 +39,7 @@ def welcome(message):
     
     bot.send_message(
         message.chat.id, 
-        "👋 **ভার্চুয়াল নাম্বার ও ওটিপি বটে স্বাগতম!**\n\nনিচের মেনু থেকে সার্ভিস বেছে নিন।",
+        "👋 **SmsBower ভার্চুয়াল নাম্বার ও ওটিপি বটে স্বাগতম!**\n\nনিচের মেনু থেকে সার্ভিস বেছে নিন।",
         parse_mode="Markdown", 
         reply_markup=markup
     )
@@ -50,10 +50,11 @@ def handle_buttons(message):
     chat_id = message.chat.id
     text = message.text
 
+    # ১. ব্যালেন্স দেখা
     if text == "💰 ব্যালেন্স দেখুন":
         bot.send_message(chat_id, "⏳ ব্যালেন্স চেক করা হচ্ছে...")
         try:
-            res = requests.get(GRIZZLY_API_URL, params={"api_key": API_KEY, "action": "getBalance"})
+            res = requests.get(SMS_BOWER_API, params={"api_key": API_KEY, "action": "getBalance"})
             if "ACCESS_BALANCE" in res.text:
                 bal = res.text.split(":")[1]
                 bot.send_message(chat_id, f"💵 **আপনার সাইট ব্যালেন্স:** `${bal}`", parse_mode="Markdown")
@@ -62,6 +63,7 @@ def handle_buttons(message):
         except Exception as e:
             bot.send_message(chat_id, "❌ সার্ভারে কানেক্ট করতে সমস্যা হয়েছে।")
 
+    # ২. নাম্বার কেনা
     elif text == "📱 নাম্বার কিনুন":
         markup = types.InlineKeyboardMarkup()
         btn_tg = types.InlineKeyboardButton("Telegram (tg)", callback_data="buy_tg")
@@ -73,7 +75,7 @@ def handle_buttons(message):
     elif text == "❓ সাহায্য":
         bot.send_message(chat_id, "সহায়তার জন্য অ্যাডমিনের সাথে যোগাযোগ করুন।")
 
-# ইনলাইন বাটন হ্যান্ডলার (নাম্বার কেনা ও ওটিপি দেখা)
+# ইনলাইন বাটন হ্যান্ডলার
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     chat_id = call.message.chat.id
@@ -83,7 +85,8 @@ def callback_inline(call):
         bot.answer_callback_query(call.id, "নাম্বার রিকোয়েস্ট করা হচ্ছে...")
         
         try:
-            res = requests.get(GRIZZLY_API_URL, params={
+            # USA (Country ID: 187 বা অন্য দেশের আইডি)
+            res = requests.get(SMS_BOWER_API, params={
                 "api_key": API_KEY,
                 "action": "getNumber",
                 "service": service,
@@ -118,7 +121,7 @@ def callback_inline(call):
         bot.answer_callback_query(call.id, "SMS চেক করা হচ্ছে...")
         
         try:
-            res = requests.get(GRIZZLY_API_URL, params={
+            res = requests.get(SMS_BOWER_API, params={
                 "api_key": API_KEY,
                 "action": "getStatus",
                 "id": act_id
@@ -139,7 +142,7 @@ def callback_inline(call):
         bot.answer_callback_query(call.id, "ক্যানসেল করা হচ্ছে...")
         
         try:
-            requests.get(GRIZZLY_API_URL, params={
+            requests.get(SMS_BOWER_API, params={
                 "api_key": API_KEY,
                 "action": "setStatus",
                 "id": act_id,
