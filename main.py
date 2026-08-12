@@ -95,7 +95,7 @@ def handle_buttons(message):
         except Exception as e:
             bot.send_message(chat_id, "❌ সার্ভার কানেকশন এরর।")
 
-    # ধাপ ১: সার্ভিস পছন্দ করা
+    # ধাপ ১: সার্ভিস পছন্দ করা (ভিডিওর ধাপ ১)
     elif text == "📱 নাম্বার কিনুন":
         markup = types.InlineKeyboardMarkup(row_width=2)
         btn_fb = types.InlineKeyboardButton("🔵 Facebook", callback_data="service_fb")
@@ -117,14 +117,14 @@ def callback_inline(call):
 
     chat_id = call.message.chat.id
     
-    # ধাপ ২: সার্ভিস সিলেক্ট করার পরই কোয়ালিটি/র‍্যাংক সিলেক্ট করার অপশন আসবে (ভিডিওর মতো)
+    # ধাপ ২: সার্ভিস সিলেক্ট করার পরই কোয়ালিটি/র‍্যাংক সিলেক্ট করার অপশন আসবে (ভিডিওর ধাপ ২)
     if call.data.startswith("service_"):
         service = call.data.split("_")[1]
         
         markup = types.InlineKeyboardMarkup(row_width=2)
         btn_gold = types.InlineKeyboardButton("🥇 Gold Rank", callback_data=f"rank_{service}_gold")
         btn_silver = types.InlineKeyboardButton("🥈 Silver Rank", callback_data=f"rank_{service}_silver")
-        btn_bronze = types.InlineKeyboardButton("🥉 Bronze Rank ($0.004 সস্তা)", callback_data=f"rank_{service}_bronze")
+        btn_bronze = types.InlineKeyboardButton("🥉 Bronze Rank", callback_data=f"rank_{service}_bronze")
         btn_all = types.InlineKeyboardButton("🌐 All Ranks", callback_data=f"rank_{service}_all")
         markup.add(btn_gold, btn_silver, btn_bronze, btn_all)
 
@@ -136,25 +136,24 @@ def callback_inline(call):
             reply_markup=markup
         )
 
-    # ধাপ ৩: কোয়ালিটি সিলেক্ট করার পর ওই কোয়ালিটির সব দেশের আসল তালিকা আসবে
+    # ধাপ ৩: সাইটের আসল হুবহু দাম ও দেশ নিয়ে আসা (ভিডিওর ধাপ ৩)
     elif call.data.startswith("rank_"):
         parts = call.data.split("_")
         service = parts[1]
         rank = parts[2]
         
-        bot.answer_callback_query(call.id, f"{rank.upper()} এর দেশ ও স্টক সাইট থেকে লোড হচ্ছে...")
+        bot.answer_callback_query(call.id, f"{rank.upper()} এর দাম ও দেশ লোড করা হচ্ছে...")
         
         try:
             if not GLOBAL_COUNTRIES:
                 GLOBAL_COUNTRIES = get_dynamic_country_names()
 
-            params = {
+            # ক্লিন রিকোয়েস্ট (যাতে সাইটের ১০০% আসল দাম আসে)
+            res = requests.get(SMS_BOWER_API, params={
                 "api_key": API_KEY,
                 "action": "getPrices",
                 "service": service
-            }
-
-            res = requests.get(SMS_BOWER_API, params=params)
+            })
             data = res.json()
             markup = types.InlineKeyboardMarkup(row_width=1)
             count = 0
@@ -166,7 +165,8 @@ def callback_inline(call):
                     
                     if int(qty) > 0:
                         c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-                        btn_text = f"🌐 {c_name} — (${price} থেকে শুরু) [{qty} টি স্টকে]"
+                        # সাইটের সাথে ১০০% হুবহু আসল দাম ও স্টক প্রদর্শন
+                        btn_text = f"🌐 {c_name} — ${price} ({qty} টি স্টকে)"
                         btn = types.InlineKeyboardButton(btn_text, callback_data=f"buy_{service}_{country_id}_{rank}")
                         markup.add(btn)
                         count += 1
@@ -177,7 +177,7 @@ def callback_inline(call):
                 bot.send_message(chat_id, f"❌ এই মুহূর্তে {service.upper()} সার্ভিসের কোনো নাম্বার স্টকে নেই।")
             else:
                 bot.edit_message_text(
-                    f"সার্ভিস: **{service.upper()}** | কোয়ালিটি: **{rank.upper()}**\n\n৩. ওই কোয়ালিটির স্টকে থাকা দেশ বেছে নিন (যেমন Yemen, Indonesia ইত্যাদি):", 
+                    f"সার্ভিস: **{service.upper()}** | কোয়ালিটি: **{rank.upper()}**\n\n৩. সাইটের সাথে মিল থাকা স্টকে থাকা দেশ বেছে নিন:", 
                     chat_id, 
                     call.message.message_id, 
                     parse_mode="Markdown", 
@@ -186,7 +186,7 @@ def callback_inline(call):
         except Exception as e:
             bot.send_message(chat_id, "❌ ডাটা লোড করতে সমস্যা হয়েছে।")
 
-    # ধাপ ৪: দেশে চাপলেই সাথে সাথে রিয়েল-টাইমে নাম্বার কেনা হয়ে যাবে
+    # ধাপ ৪: নাম্বার পারচেজ করা (ভিডিওর ধাপ ৪)
     elif call.data.startswith("buy_"):
         parts = call.data.split("_")
         service = parts[1]
@@ -204,15 +204,8 @@ def callback_inline(call):
                 "country": country_id
             }
             
-            # কোয়ালিটি অনুযায়ী সস্তা/গোল্ড ফিল্টার
-            if rank == "bronze":
-                params["rank"] = "bronze"
-                params["maxPrice"] = "0.05"
-            elif rank == "silver":
-                params["rank"] = "silver"
-                params["maxPrice"] = "0.15"
-            elif rank == "gold":
-                params["rank"] = "gold"
+            if rank != "all":
+                params["rank"] = rank
 
             res = requests.get(SMS_BOWER_API, params=params)
             
