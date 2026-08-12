@@ -173,12 +173,10 @@ def callback_inline(call):
                             
                             if int(qty) > 0:
                                 c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-                                # সংক্ষিপ্ত ও টেলিগ্রাম ফ্রেন্ডলি বাটন
-                                btn_text = f"🌐 {c_name} — ${price} ({qty} pcs)"
+                                btn_text = f"🌐 {c_name} — (fr. ${price}) [{qty} pcs]"
                                 btn = types.InlineKeyboardButton(btn_text, callback_data=f"b_{service}_{country_id}_{rank}")
                                 markup.add(btn)
                                 count += 1
-                                # টেলিগ্রামের সীমাবদ্ধতা এড়াতে সেরা ২৫টি দেশ
                                 if count >= 25:
                                     break
             
@@ -195,7 +193,7 @@ def callback_inline(call):
         except Exception as err:
             bot.send_message(chat_id, f"❌ টেকনিক্যাল এরর: `{str(err)}`", parse_mode="Markdown")
 
-    # ধাপ ৪: নাম্বার পারচেজ করা
+    # ধাপ ৪: getNumberV2 ব্যবহার করে রিয়েল-টাইমে কাটা দামসহ নাম্বার কেনা
     elif call.data.startswith("b_"):
         parts = call.data.split("_")
         service = parts[1]
@@ -206,9 +204,10 @@ def callback_inline(call):
         bot.answer_callback_query(call.id, f"{c_name} এর নাম্বার কেনা হচ্ছে...")
         
         try:
+            # পোস্টম্যান ডকুমেন্টেশন অনুযায়ী getNumberV2 ব্যবহার করা হচ্ছে
             params = {
                 "api_key": API_KEY,
-                "action": "getNumber",
+                "action": "getNumberV2",
                 "service": service,
                 "country": country_id
             }
@@ -218,29 +217,43 @@ def callback_inline(call):
 
             res = requests.get(SMS_BOWER_API, params=params, timeout=15)
             
-            if "ACCESS_NUMBER" in res.text:
-                res_parts = res.text.split(":")
-                act_id = res_parts[1]
-                number = res_parts[2]
-                
-                msg = (
-                    f"🎉 **Done. You've gotten a number!**\n\n"
-                    f"📱 **সার্ভিস:** `{service.upper()}`\n"
-                    f"🏆 **কোয়ালিটি:** `{rank.upper()}`\n"
-                    f"🌐 **দেশ:** `{c_name}`\n"
-                    f"📞 **নাম্বার:** `{number}`\n"
-                    f"🆔 **অর্ডার আইডি:** `{act_id}`\n\n"
-                    f"অ্যাপে নাম্বারটি বসিয়ে কোড পাঠান, তারপর নিচে চেক চাপুন।"
-                )
-                
-                markup = types.InlineKeyboardMarkup()
-                btn_check = types.InlineKeyboardButton("🔄 OTP / কোড চেক করুন", callback_data=f"check_{act_id}")
-                btn_cancel = types.InlineKeyboardButton("❌ ক্যানসেল করুন", callback_data=f"cancel_{act_id}")
-                markup.add(btn_check, btn_cancel)
-                
-                bot.send_message(chat_id, msg, parse_mode="Markdown", reply_markup=markup)
-            else:
-                bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি: {res.text}")
+            # getNumberV2 জেসন রেসপন্স প্রসেস করা
+            try:
+                data = res.json()
+                if "phoneNumber" in data:
+                    number = data["phoneNumber"]
+                    act_id = data["activationId"]
+                    cost = data.get("activationCost", "N/A")
+                    
+                    msg = (
+                        f"🎉 **Done. You've gotten a number!**\n\n"
+                        f"📱 **সার্ভিস:** `{service.upper()}`\n"
+                        f"🏆 **কোয়ালিটি:** `{rank.upper()}`\n"
+                        f"🌐 **দেশ:** `{c_name}`\n"
+                        f"📞 **নাম্বার:** `+{number}`\n"
+                        f"💵 **কাটা আসল দাম:** `${cost}`\n"
+                        f"🆔 **অর্ডার আইডি:** `{act_id}`\n\n"
+                        f"অ্যাপে নাম্বারটি বসিয়ে কোড পাঠান, তারপর নিচে চেক চাপুন।"
+                    )
+                    
+                    markup = types.InlineKeyboardMarkup()
+                    btn_check = types.InlineKeyboardButton("🔄 OTP / কোড চেক করুন", callback_data=f"check_{act_id}")
+                    btn_cancel = types.InlineKeyboardButton("❌ ক্যানসেল করুন", callback_data=f"cancel_{act_id}")
+                    markup.add(btn_check, btn_cancel)
+                    
+                    bot.send_message(chat_id, msg, parse_mode="Markdown", reply_markup=markup)
+                    return
+                else:
+                    bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি: {res.text}")
+            except Exception:
+                # যদি জেসন না এসে টেক্সট আসে
+                if "ACCESS_NUMBER" in res.text:
+                    res_parts = res.text.split(":")
+                    act_id = res_parts[1]
+                    number = res_parts[2]
+                    bot.send_message(chat_id, f"✅ নাম্বার: `+{number}`\n🆔 আইডি: `{act_id}`", parse_mode="Markdown")
+                else:
+                    bot.send_message(chat_id, f"❌ রেসপন্স: {res.text}")
         except Exception as e:
             bot.send_message(chat_id, f"❌ এরর হয়েছে: {str(e)}")
 
