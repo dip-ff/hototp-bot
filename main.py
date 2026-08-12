@@ -95,7 +95,7 @@ def handle_buttons(message):
         except Exception as e:
             bot.send_message(chat_id, "❌ সার্ভার কানেকশন এরর।")
 
-    # ধাপ ১: সার্ভিস পছন্দ করা (ভিডিওর ধাপ ১)
+    # ধাপ ১: সার্ভিস পছন্দ করা
     elif text == "📱 নাম্বার কিনুন":
         markup = types.InlineKeyboardMarkup(row_width=2)
         btn_fb = types.InlineKeyboardButton("🔵 Facebook", callback_data="service_fb")
@@ -117,7 +117,7 @@ def callback_inline(call):
 
     chat_id = call.message.chat.id
     
-    # ধাপ ২: সার্ভিস সিলেক্ট করার পরই কোয়ালিটি/র‍্যাংক সিলেক্ট করার অপশন আসবে (ভিডিওর ধাপ ২)
+    # ধাপ ২: কোয়ালিটি/র‍্যাংক সিলেক্ট করা
     if call.data.startswith("service_"):
         service = call.data.split("_")[1]
         
@@ -136,19 +136,18 @@ def callback_inline(call):
             reply_markup=markup
         )
 
-    # ধাপ ৩: সাইটের আসল হুবহু দাম ও দেশ নিয়ে আসা (ভিডিওর ধাপ ৩)
+    # ধাপ ৩: সাইটের সকল দেশের পূর্ণাঙ্গ তালিকা লোড করা
     elif call.data.startswith("rank_"):
         parts = call.data.split("_")
         service = parts[1]
         rank = parts[2]
         
-        bot.answer_callback_query(call.id, f"{rank.upper()} এর দাম ও দেশ লোড করা হচ্ছে...")
+        bot.answer_callback_query(call.id, f"{rank.upper()} এর সকল দেশ লোড হচ্ছে...")
         
         try:
             if not GLOBAL_COUNTRIES:
                 GLOBAL_COUNTRIES = get_dynamic_country_names()
 
-            # ক্লিন রিকোয়েস্ট (যাতে সাইটের ১০০% আসল দাম আসে)
             res = requests.get(SMS_BOWER_API, params={
                 "api_key": API_KEY,
                 "action": "getPrices",
@@ -165,19 +164,20 @@ def callback_inline(call):
                     
                     if int(qty) > 0:
                         c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-                        # সাইটের সাথে ১০০% হুবহু আসল দাম ও স্টক প্রদর্শন
                         btn_text = f"🌐 {c_name} — ${price} ({qty} টি স্টকে)"
                         btn = types.InlineKeyboardButton(btn_text, callback_data=f"buy_{service}_{country_id}_{rank}")
                         markup.add(btn)
                         count += 1
-                        if count >= 20: # টপ ২০টি দেশ
+                        
+                        # টেলিগ্রাম সর্বোচ্চ ৯০টি বাটন হ্যান্ডেল করতে পারে
+                        if count >= 90: 
                             break
             
             if count == 0:
                 bot.send_message(chat_id, f"❌ এই মুহূর্তে {service.upper()} সার্ভিসের কোনো নাম্বার স্টকে নেই।")
             else:
                 bot.edit_message_text(
-                    f"সার্ভিস: **{service.upper()}** | কোয়ালিটি: **{rank.upper()}**\n\n৩. সাইটের সাথে মিল থাকা স্টকে থাকা দেশ বেছে নিন:", 
+                    f"সার্ভিস: **{service.upper()}** | কোয়ালিটি: **{rank.upper()}**\n\n৩. সাইটে উপলব্ধ সকল দেশের তালিকা (মোট {count} টি দেশ এভেলেবল):", 
                     chat_id, 
                     call.message.message_id, 
                     parse_mode="Markdown", 
@@ -186,7 +186,7 @@ def callback_inline(call):
         except Exception as e:
             bot.send_message(chat_id, "❌ ডাটা লোড করতে সমস্যা হয়েছে।")
 
-    # ধাপ ৪: নাম্বার পারচেজ করা (ভিডিওর ধাপ ৪)
+    # ধাপ ৪: নাম্বার পারচেজ করা
     elif call.data.startswith("buy_"):
         parts = call.data.split("_")
         service = parts[1]
