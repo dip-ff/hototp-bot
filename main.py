@@ -31,7 +31,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 # সাইট থেকে সব দেশের আসল নাম ডাউনলোড করার ফাংশন
 def get_dynamic_country_names():
     try:
-        res = requests.get(SMS_BOWER_API, params={"api_key": API_KEY, "action": "getCountries"})
+        res = requests.get(SMS_BOWER_API, params={"api_key": API_KEY, "action": "getCountries"}, timeout=15)
         data = res.json()
         countries_map = {}
         
@@ -86,14 +86,14 @@ def handle_buttons(message):
     if text == "💰 ব্যালেন্স দেখুন":
         bot.send_message(chat_id, "⏳ সাইট ব্যালেন্স চেক করা হচ্ছে...")
         try:
-            res = requests.get(SMS_BOWER_API, params={"api_key": API_KEY, "action": "getBalance"})
+            res = requests.get(SMS_BOWER_API, params={"api_key": API_KEY, "action": "getBalance"}, timeout=15)
             if "ACCESS_BALANCE" in res.text:
                 bal = res.text.split(":")[1]
                 bot.send_message(chat_id, f"💵 **আপনার সাইট ব্যালেন্স:** `${bal}`", parse_mode="Markdown")
             else:
-                bot.send_message(chat_id, f"❌ রেসপন্স: {res.text}")
+                bot.send_message(chat_id, f"❌ সাইট রেসপন্স: {res.text}")
         except Exception as e:
-            bot.send_message(chat_id, "❌ সার্ভার কানেকশন এরর।")
+            bot.send_message(chat_id, f"❌ সার্ভার কানেকশন এরর: {str(e)}")
 
     # ধাপ ১: সার্ভিস পছন্দ করা
     elif text == "📱 নাম্বার কিনুন":
@@ -136,13 +136,13 @@ def callback_inline(call):
             reply_markup=markup
         )
 
-    # ধাপ ৩: সাইটের আসল হুবহু দাম ও দেশ নিয়ে আসা
+    # ধাপ ৩: কোয়ালিটি সিলেক্টের পর সাইটের আসল হুবহু দাম ও দেশ নিয়ে আসা
     elif call.data.startswith("rank_"):
         parts = call.data.split("_")
         service = parts[1]
         rank = parts[2]
         
-        bot.answer_callback_query(call.id, f"{rank.upper()} এর দেশ ও স্টক লোড করা হচ্ছে...")
+        bot.answer_callback_query(call.id, f"{rank.upper()} এর দাম ও দেশ লোড করা হচ্ছে...")
         
         try:
             if not GLOBAL_COUNTRIES:
@@ -152,40 +152,49 @@ def callback_inline(call):
                 "api_key": API_KEY,
                 "action": "getPrices",
                 "service": service
-            })
-            data = res.json()
+            }, timeout=15)
+            
+            # JSON ডাটা ঠিকমতো আসছে কিনা চেক
+            try:
+                data = res.json()
+            except Exception:
+                bot.send_message(chat_id, f"❌ সাইট থেকে প্রাপ্ত রেসপন্স: `{res.text}`", parse_mode="Markdown")
+                return
+
             markup = types.InlineKeyboardMarkup(row_width=1)
             count = 0
             
-            for country_id, services in data.items():
-                if service in services:
-                    price = services[service].get("cost") or services[service].get("price") or "N/A"
-                    qty = services[service].get("count") or 0
-                    
-                    if int(qty) > 0:
-                        c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-                        # ওয়েবসাইটের মতো "fr." (from) যুক্ত বাটন
-                        btn_text = f"🌐 {c_name} — (fr. ${price}) [{qty} টি স্টকে]"
-                        btn = types.InlineKeyboardButton(btn_text, callback_data=f"buy_{service}_{country_id}_{rank}")
-                        markup.add(btn)
-                        count += 1
-                        if count >= 90:
-                            break
+            if isinstance(data, dict):
+                for country_id, services in data.items():
+                    if isinstance(services, dict) and service in services:
+                        s_info = services[service]
+                        if isinstance(s_info, dict):
+                            price = s_info.get("cost") or s_info.get("price") or "N/A"
+                            qty = s_info.get("count") or 0
+                            
+                            if int(qty) > 0:
+                                c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
+                                btn_text = f"🌐 {c_name} — (fr. ${price}) [{qty} টি স্টকে]"
+                                btn = types.InlineKeyboardButton(btn_text, callback_data=f"buy_{service}_{country_id}_{rank}")
+                                markup.add(btn)
+                                count += 1
+                                if count >= 90:
+                                    break
             
             if count == 0:
                 bot.send_message(chat_id, f"❌ এই মুহূর্তে {service.upper()} সার্ভিসের কোনো নাম্বার স্টকে নেই।")
             else:
                 bot.edit_message_text(
-                    f"সার্ভিস: **{service.upper()}** | সিলেক্টেড কোয়ালিটি: **{rank.upper()}**\n\n৩. ওই কোয়ালিটির জন্য দেশ বেছে নিন:", 
+                    f"সার্ভিস: **{service.upper()}** | কোয়ালিটি: **{rank.upper()}**\n\n৩. ওই কোয়ালিটির জন্য দেশ বেছে নিন:", 
                     chat_id, 
                     call.message.message_id, 
                     parse_mode="Markdown", 
                     reply_markup=markup
                 )
-        except Exception as e:
-            bot.send_message(chat_id, "❌ ডাটা লোড করতে সমস্যা হয়েছে।")
+        except Exception as err:
+            bot.send_message(chat_id, f"❌ টেকনিক্যাল এরর: `{str(err)}`", parse_mode="Markdown")
 
-    # ধাপ ৪: নাম্বার পারচেজ করা (এখানেই আসল Rank ফিল্টার প্রয়োগ হচ্ছে)
+    # ধাপ ৪: নাম্বার পারচেজ করা
     elif call.data.startswith("buy_"):
         parts = call.data.split("_")
         service = parts[1]
@@ -203,11 +212,10 @@ def callback_inline(call):
                 "country": country_id
             }
             
-            # কেনার সময় আসল Rank প্রয়োগ করা হচ্ছে
             if rank != "all":
                 params["rank"] = rank
 
-            res = requests.get(SMS_BOWER_API, params=params)
+            res = requests.get(SMS_BOWER_API, params=params, timeout=15)
             
             if "ACCESS_NUMBER" in res.text:
                 res_parts = res.text.split(":")
@@ -233,7 +241,7 @@ def callback_inline(call):
             else:
                 bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি: {res.text}")
         except Exception as e:
-            bot.send_message(chat_id, "❌ এরর হয়েছে।")
+            bot.send_message(chat_id, f"❌ এরর হয়েছে: {str(e)}")
 
     # OTP কোড চেক করা
     elif call.data.startswith("check_"):
@@ -245,7 +253,7 @@ def callback_inline(call):
                 "api_key": API_KEY,
                 "action": "getStatus",
                 "id": act_id
-            })
+            }, timeout=15)
             
             if "STATUS_OK" in res.text:
                 code = res.text.split(":")[1]
@@ -255,7 +263,7 @@ def callback_inline(call):
             else:
                 bot.send_message(chat_id, f"স্ট্যাটাস: {res.text}")
         except Exception as e:
-            bot.send_message(chat_id, "❌ এরর হয়েছে।")
+            bot.send_message(chat_id, f"❌ এরর হয়েছে: {str(e)}")
 
     # অর্ডার ক্যানসেল
     elif call.data.startswith("cancel_"):
@@ -268,9 +276,9 @@ def callback_inline(call):
                 "action": "setStatus",
                 "id": act_id,
                 "status": "8"
-            })
+            }, timeout=15)
             bot.send_message(chat_id, "🚫 অর্ডারটি ক্যানসেল করা হয়েছে।")
         except Exception as e:
-            bot.send_message(chat_id, "❌ ক্যানসেল করা যায়নি।")
+            bot.send_message(chat_id, f"❌ ক্যানসেল করা যায়নি: {str(e)}")
 
 bot.infinity_polling()
