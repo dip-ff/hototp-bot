@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "SmsBower Bot is Running Live!"
+    return "Personal SmsBower Bot is Running Live!"
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
@@ -20,71 +20,61 @@ Thread(target=run_flask).start()
 # -----------------------------
 
 # ----------------- কনফিগারেশন -----------------
-BOT_TOKEN = "" # আপনার রিয়েল বটের টোকেন বসাবেন
+BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q" # @BotFather থেকে পাওয়া বটের টোকেন
 API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
 SMS_BOWER_API = "https://smsbower.page/stubs/handler_api.php"
+
+# আপনার নিজস্ব টেলিগ্রাম ইউজার আইডি
+ALLOWED_USER_ID = 7418898985 
 # -----------------------------------------------
 
-# প্রায় সব দেশের আইডি অনুযায়ী আসল নাম ও পতাকা
-COUNTRY_NAMES = {
-    "0": "🇷🇺 Russia",
-    "1": "🇺🇦 Ukraine",
-    "2": "🇰🇿 Kazakhstan",
-    "3": "🇨🇳 China",
-    "4": "🇵🇭 Philippines",
-    "5": "🇲🇲 Myanmar",
-    "6": "🇮🇩 Indonesia",
-    "7": "🇲🇾 Malaysia",
-    "8": "🇰🇭 Cambodia",
-    "9": "🇱АО Laos",
-    "10": "🇻🇳 Vietnam",
-    "11": "🇬🇧 UK",
-    "12": "🇹🇭 Thailand",
-    "13": "🇰🇬 Kyrgyzstan",
-    "14": "🇺🇿 Uzbekistan",
-    "15": "🇵🇱 Poland",
-    "16": "🇸🇪 Sweden",
-    "18": "🇩🇪 Germany",
-    "19": "🇳🇬 Nigeria",
-    "21": "🇪🇬 Egypt",
-    "22": "🇮🇳 India",
-    "23": "🇮🇪 Ireland",
-    "24": "🇰🇷 South Korea",
-    "25": "🇦🇫 Afghanistan",
-    "26": "🇨🇴 Colombia",
-    "27": "🇵🇰 Pakistan",
-    "28": "🇦🇱 Albania",
-    "29": "🇩🇿 Algeria",
-    "31": "🇿🇦 South Africa",
-    "32": "🇷🇴 Romania",
-    "36": "🇨🇦 Canada",
-    "58": "🇲🇽 Mexico",
-    "60": "🇧🇩 Bangladesh",
-    "66": "🇹🇭 Thailand",
-    "71": "🇫🇷 France",
-    "73": "🇧🇷 Brazil",
-    "76": "🇪🇸 Spain",
-    "79": "🇲🇦 Morocco",
-    "80": "🇬🇭 Ghana",
-    "138": "🇰🇪 Kenya",
-    "147": "🇵🇪 Peru",
-    "187": "🇺🇸 USA"
-}
-
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# সাইট থেকে ডায়নামিক্যালি সব দেশের আসল নাম ডাউনলোড করার ফাংশন
+def get_dynamic_country_names():
+    try:
+        res = requests.get(SMS_BOWER_API, params={"api_key": API_KEY, "action": "getCountries"})
+        data = res.json()
+        countries_map = {}
+        
+        if isinstance(data, list):
+            for c in data:
+                c_id = str(c.get("id"))
+                name = c.get("eng") or c.get("name") or c.get("rus") or f"Country #{c_id}"
+                countries_map[c_id] = name
+        elif isinstance(data, dict):
+            for c_id, c in data.items():
+                if isinstance(c, dict):
+                    name = c.get("eng") or c.get("name") or c.get("rus") or f"Country #{c_id}"
+                    countries_map[str(c_id)] = name
+                else:
+                    countries_map[str(c_id)] = str(c)
+        return countries_map
+    except Exception as e:
+        return {}
+
+# গ্লোবালি সব দেশের নাম ক্যাশে রাখা
+GLOBAL_COUNTRIES = get_dynamic_country_names()
+
+# সিকিউরিটি ফিল্টার (অন্য কেউ বট চালাতে পারবে না)
+def is_authorized(chat_id):
+    return str(chat_id) == str(ALLOWED_USER_ID)
 
 # /start কমান্ড
 @bot.message_handler(commands=['start'])
 def welcome(message):
+    if not is_authorized(message.chat.id):
+        bot.send_message(message.chat.id, "⛔ **দুঃখিত!** এটি একটি পার্সোনাল বট। আপনার এটি ব্যবহারের অনুমতি নেই।")
+        return
+
     markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     btn1 = types.KeyboardButton("📱 নাম্বার কিনুন")
     btn2 = types.KeyboardButton("💰 ব্যালেন্স দেখুন")
-    btn3 = types.KeyboardButton("❓ সাহায্য")
-    markup.add(btn1, btn2, btn3)
+    markup.add(btn1, btn2)
     
     bot.send_message(
         message.chat.id, 
-        "👋 **SmsBower ভার্চুয়াল নাম্বার ও ওটিপি বটে স্বাগতম!**\n\nনিচের মেনু থেকে সার্ভিস বেছে নিন।",
+        "👋 **স্বাগতম! আপনার পার্সোনাল ওটিপি বটে আপনাকে স্বাগতম।**",
         parse_mode="Markdown", 
         reply_markup=markup
     )
@@ -92,12 +82,16 @@ def welcome(message):
 # মেনু বাটন হ্যান্ডলার
 @bot.message_handler(func=lambda message: True)
 def handle_buttons(message):
+    if not is_authorized(message.chat.id):
+        bot.send_message(message.chat.id, "⛔ **অনুমতি নেই!**")
+        return
+
     chat_id = message.chat.id
     text = message.text
 
     # ১. ব্যালেন্স দেখা
     if text == "💰 ব্যালেন্স দেখুন":
-        bot.send_message(chat_id, "⏳ ব্যালেন্স চেক করা হচ্ছে...")
+        bot.send_message(chat_id, "⏳ সাইট ব্যালেন্স চেক করা হচ্ছে...")
         try:
             res = requests.get(SMS_BOWER_API, params={"api_key": API_KEY, "action": "getBalance"})
             if "ACCESS_BALANCE" in res.text:
@@ -106,35 +100,40 @@ def handle_buttons(message):
             else:
                 bot.send_message(chat_id, f"❌ রেসপন্স: {res.text}")
         except Exception as e:
-            bot.send_message(chat_id, "❌ সার্ভারে কানেক্ট করতে সমস্যা হয়েছে।")
+            bot.send_message(chat_id, "❌ সার্ভার কানেকশন এরর।")
 
     # ২. সার্ভিস চয়েস
     elif text == "📱 নাম্বার কিনুন":
         markup = types.InlineKeyboardMarkup(row_width=2)
-        btn_fb = types.InlineKeyboardButton("🔵 Facebook (fb)", callback_data="service_fb")
-        btn_tg = types.InlineKeyboardButton("✈️ Telegram (tg)", callback_data="service_tg")
-        btn_wa = types.InlineKeyboardButton("🟢 WhatsApp (wa)", callback_data="service_wa")
-        btn_ig = types.InlineKeyboardButton("📸 Instagram (ig)", callback_data="service_ig")
-        btn_im = types.InlineKeyboardButton("🟡 Imo (im)", callback_data="service_im")
-        btn_tk = types.InlineKeyboardButton("🎵 TikTok (lf)", callback_data="service_lf")
+        btn_fb = types.InlineKeyboardButton("🔵 Facebook", callback_data="service_fb")
+        btn_tg = types.InlineKeyboardButton("✈️ Telegram", callback_data="service_tg")
+        btn_wa = types.InlineKeyboardButton("🟢 WhatsApp", callback_data="service_wa")
+        btn_ig = types.InlineKeyboardButton("📸 Instagram", callback_data="service_ig")
+        btn_im = types.InlineKeyboardButton("🟡 Imo", callback_data="service_im")
+        btn_tk = types.InlineKeyboardButton("🎵 TikTok", callback_data="service_lf")
         markup.add(btn_fb, btn_tg, btn_wa, btn_ig, btn_im, btn_tk)
         
-        bot.send_message(chat_id, "কোন সার্ভিসের জন্য নাম্বার চান নিচে থেকে সিলেক্ট করুন:", reply_markup=markup)
-
-    elif text == "❓ সাহায্য":
-        bot.send_message(chat_id, "সহায়তার জন্য অ্যাডমিনের সাথে যোগাযোগ করুন।")
+        bot.send_message(chat_id, "কোন সার্ভিসের জন্য নাম্বার চান বেছে নিন:", reply_markup=markup)
 
 # ইনলাইন বাটন হ্যান্ডলার
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
+    global GLOBAL_COUNTRIES
+    if not is_authorized(call.message.chat.id):
+        bot.answer_callback_query(call.id, "⛔ অনুমতি নেই!", show_alert=True)
+        return
+
     chat_id = call.message.chat.id
     
-    # সার্ভিস পছন্দ করার পর সাইট থেকে লাইভ দাম ও স্টক লোড
     if call.data.startswith("service_"):
         service = call.data.split("_")[1]
-        bot.answer_callback_query(call.id, "সাইট থেকে দাম ও স্টক লোড করা হচ্ছে...")
+        bot.answer_callback_query(call.id, "সাইট থেকে ডায়নামিক তথ্য আনা হচ্ছে...")
         
         try:
+            # ক্যানট্রি লিস্ট খালি থাকলে নতুন করে লোড করবে
+            if not GLOBAL_COUNTRIES:
+                GLOBAL_COUNTRIES = get_dynamic_country_names()
+
             res = requests.get(SMS_BOWER_API, params={
                 "api_key": API_KEY,
                 "action": "getPrices",
@@ -151,29 +150,28 @@ def callback_inline(call):
                     qty = services[service].get("count") or 0
                     
                     if int(qty) > 0:
-                        c_name = COUNTRY_NAMES.get(str(country_id), f"Country #{country_id}")
-                        btn_text = f"{c_name} — ${price} (স্টক: {qty} টি)"
+                        # সম্পূর্ণ সাইটের ডাটাবেজ থেকে আসা দেশের আসল নাম
+                        c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
+                        btn_text = f"🌐 {c_name} — ${price} ({qty} টি খালি আছে)"
                         btn = types.InlineKeyboardButton(btn_text, callback_data=f"buy_{service}_{country_id}")
                         markup.add(btn)
                         count += 1
-                        
-                        if count >= 15:
+                        if count >= 20: # টপ ২০টি খালি থাকা দেশ দেখাবে
                             break
             
             if count == 0:
-                bot.send_message(chat_id, "❌ দুঃখিত, এই সার্ভিসের জন্য এই মুহূর্তে কোনো দেশের নাম্বার স্টকে নেই।")
+                bot.send_message(chat_id, "❌ এই মুহূর্তে কোনো নাম্বার স্টকে নেই।")
             else:
                 bot.edit_message_text(
-                    f"আপনার নির্বাচিত সার্ভিস: **{service.upper()}**\n\nনিচে উপলব্ধ দেশ, দাম ও স্টকের তালিকা দেওয়া হলো (পছন্দের দেশে ক্লিক করুন):", 
+                    f"সার্ভিস: **{service.upper()}**\n\nসাইটে স্টকে থাকা সকল দেশের আসল তালিকা:", 
                     chat_id, 
                     call.message.message_id, 
                     parse_mode="Markdown", 
                     reply_markup=markup
                 )
         except Exception as e:
-            bot.send_message(chat_id, "❌ সাইট থেকে প্রাইস লোড করতে সমস্যা হয়েছে।")
+            bot.send_message(chat_id, "❌ ডাটা লোড করতে সমস্যা হয়েছে।")
 
-    # নাম্বার কেনা
     elif call.data.startswith("buy_"):
         parts = call.data.split("_")
         service = parts[1]
@@ -195,10 +193,10 @@ def callback_inline(call):
                 number = res_parts[2]
                 
                 msg = (
-                    f"✅ **নাম্বার কেনা সফল হয়েছে!**\n\n"
+                    f"✅ **নাম্বার কেনা সফল হয়েছে!**\n\n"
                     f"📱 **নাম্বার:** `{number}`\n"
                     f"🆔 **অর্ডার আইডি:** `{act_id}`\n\n"
-                    f"অ্যাপে নাম্বারটি বসিয়ে কোড পাঠান, তারপর নিচে ওটিপি বাটনে চাপুন।"
+                    f"কোড পাঠাতে এই নাম্বারটি ব্যবহার করুন।"
                 )
                 
                 markup = types.InlineKeyboardMarkup()
@@ -208,11 +206,10 @@ def callback_inline(call):
                 
                 bot.send_message(chat_id, msg, parse_mode="Markdown", reply_markup=markup)
             else:
-                bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি। উত্তর: {res.text}")
+                bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি: {res.text}")
         except Exception as e:
-            bot.send_message(chat_id, "❌ নেটওয়ার্ক ত্রুটি।")
+            bot.send_message(chat_id, "❌ এরর হয়েছে।")
 
-    # OTP কোড চেক করা
     elif call.data.startswith("check_"):
         act_id = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "SMS চেক করা হচ্ছে...")
@@ -232,9 +229,8 @@ def callback_inline(call):
             else:
                 bot.send_message(chat_id, f"স্ট্যাটাস: {res.text}")
         except Exception as e:
-            bot.send_message(chat_id, "❌ চেক করতে সমস্যা হয়েছে।")
+            bot.send_message(chat_id, "❌ এরর হয়েছে।")
 
-    # অর্ডার ক্যানসেল
     elif call.data.startswith("cancel_"):
         act_id = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "ক্যানসেল করা হচ্ছে...")
