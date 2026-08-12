@@ -136,13 +136,13 @@ def callback_inline(call):
             reply_markup=markup
         )
 
-    # ধাপ ৩: কোয়ালিটি সিলেক্টের পর সাইটের আসল হুবহু দাম ও দেশ নিয়ে আসা
+    # ধাপ ৩: সাইটের আসল হুবহু দাম ও দেশ নিয়ে আসা
     elif call.data.startswith("rank_"):
         parts = call.data.split("_")
         service = parts[1]
         rank = parts[2]
         
-        bot.answer_callback_query(call.id, f"{rank.upper()} এর দাম ও দেশ লোড করা হচ্ছে...")
+        bot.answer_callback_query(call.id, f"{rank.upper()} এর দেশ ও স্টক লোড করা হচ্ছে...")
         
         try:
             if not GLOBAL_COUNTRIES:
@@ -154,7 +154,6 @@ def callback_inline(call):
                 "service": service
             }, timeout=15)
             
-            # JSON ডাটা ঠিকমতো আসছে কিনা চেক
             try:
                 data = res.json()
             except Exception:
@@ -174,18 +173,20 @@ def callback_inline(call):
                             
                             if int(qty) > 0:
                                 c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-                                btn_text = f"🌐 {c_name} — (fr. ${price}) [{qty} টি স্টকে]"
-                                btn = types.InlineKeyboardButton(btn_text, callback_data=f"buy_{service}_{country_id}_{rank}")
+                                # সংক্ষিপ্ত ও টেলিগ্রাম ফ্রেন্ডলি বাটন
+                                btn_text = f"🌐 {c_name} — ${price} ({qty} pcs)"
+                                btn = types.InlineKeyboardButton(btn_text, callback_data=f"b_{service}_{country_id}_{rank}")
                                 markup.add(btn)
                                 count += 1
-                                if count >= 90:
+                                # টেলিগ্রামের সীমাবদ্ধতা এড়াতে সেরা ২৫টি দেশ
+                                if count >= 25:
                                     break
             
             if count == 0:
                 bot.send_message(chat_id, f"❌ এই মুহূর্তে {service.upper()} সার্ভিসের কোনো নাম্বার স্টকে নেই।")
             else:
                 bot.edit_message_text(
-                    f"সার্ভিস: **{service.upper()}** | কোয়ালিটি: **{rank.upper()}**\n\n৩. ওই কোয়ালিটির জন্য দেশ বেছে নিন:", 
+                    f"সার্ভিস: **{service.upper()}** | কোয়ালিটি: **{rank.upper()}**\n\n৩. টপ স্টকে থাকা দেশ বেছে নিন (মোট {count} টি দেশ):", 
                     chat_id, 
                     call.message.message_id, 
                     parse_mode="Markdown", 
@@ -195,14 +196,14 @@ def callback_inline(call):
             bot.send_message(chat_id, f"❌ টেকনিক্যাল এরর: `{str(err)}`", parse_mode="Markdown")
 
     # ধাপ ৪: নাম্বার পারচেজ করা
-    elif call.data.startswith("buy_"):
+    elif call.data.startswith("b_"):
         parts = call.data.split("_")
         service = parts[1]
         country_id = parts[2]
         rank = parts[3]
         
         c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-        bot.answer_callback_query(call.id, f"{c_name} এর {rank.upper()} নাম্বার কেনা হচ্ছে...")
+        bot.answer_callback_query(call.id, f"{c_name} এর নাম্বার কেনা হচ্ছে...")
         
         try:
             params = {
