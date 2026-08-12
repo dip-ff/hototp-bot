@@ -20,11 +20,10 @@ Thread(target=run_flask).start()
 # -----------------------------
 
 # ----------------- কনফিগারেশন -----------------
-BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q"  # আপনার নতুন টোকেন
-API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"                 # আপনার সাইট API
+BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q"
+API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
 SMS_BOWER_API = "https://smsbower.page/stubs/handler_api.php"
-
-ALLOWED_USER_ID = 7418898985  # আপনার নিজস্ব টেলিগ্রাম ইউজার আইডি
+ALLOWED_USER_ID = 7418898985
 # -----------------------------------------------
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -54,11 +53,9 @@ def get_dynamic_country_names():
 
 GLOBAL_COUNTRIES = get_dynamic_country_names()
 
-# সিকিউরিটি ফিল্টার (আপনি ছাড়া অন্য কেউ চালাতে পারবে না)
 def is_authorized(chat_id):
     return str(chat_id) == str(ALLOWED_USER_ID)
 
-# /start কমান্ড
 @bot.message_handler(commands=['start'])
 def welcome(message):
     if not is_authorized(message.chat.id):
@@ -77,7 +74,6 @@ def welcome(message):
         reply_markup=markup
     )
 
-# মেনু বাটন হ্যান্ডলার
 @bot.message_handler(func=lambda message: True)
 def handle_buttons(message):
     if not is_authorized(message.chat.id):
@@ -87,7 +83,6 @@ def handle_buttons(message):
     chat_id = message.chat.id
     text = message.text
 
-    # ১. ব্যালেন্স দেখা
     if text == "💰 ব্যালেন্স দেখুন":
         bot.send_message(chat_id, "⏳ সাইট ব্যালেন্স চেক করা হচ্ছে...")
         try:
@@ -100,7 +95,7 @@ def handle_buttons(message):
         except Exception as e:
             bot.send_message(chat_id, "❌ সার্ভার কানেকশন এরর।")
 
-    # ২. সার্ভিস চয়েস
+    # ধাপ ১: সার্ভিস সিলেক্ট করা (ভিডিওর ধাপ ১)
     elif text == "📱 নাম্বার কিনুন":
         markup = types.InlineKeyboardMarkup(row_width=2)
         btn_fb = types.InlineKeyboardButton("🔵 Facebook", callback_data="service_fb")
@@ -111,9 +106,8 @@ def handle_buttons(message):
         btn_tk = types.InlineKeyboardButton("🎵 TikTok", callback_data="service_lf")
         markup.add(btn_fb, btn_tg, btn_wa, btn_ig, btn_im, btn_tk)
         
-        bot.send_message(chat_id, "কোন সার্ভিসের জন্য নাম্বার চান বেছে নিন:", reply_markup=markup)
+        bot.send_message(chat_id, "১. প্রথমে সার্ভিস সিলেক্ট করুন:", reply_markup=markup)
 
-# ইনলাইন বাটন হ্যান্ডলার
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     global GLOBAL_COUNTRIES
@@ -123,43 +117,69 @@ def callback_inline(call):
 
     chat_id = call.message.chat.id
     
-    # ১ম ধাপ: সার্ভিস পছন্দ
+    # ধাপ ২: সার্ভিস সিলেক্টের পর কোয়ালিটি/র‍্যাংক পছন্দ করা (ভিডিওর ধাপ ২)
     if call.data.startswith("service_"):
         service = call.data.split("_")[1]
-        bot.answer_callback_query(call.id, "সাইট থেকে ডায়নামিক তথ্য আনা হচ্ছে...")
+        
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        btn_all = types.InlineKeyboardButton("🌐 All Ranks", callback_data=f"rank_{service}_all")
+        btn_gold = types.InlineKeyboardButton("🥇 Gold", callback_data=f"rank_{service}_gold")
+        btn_silver = types.InlineKeyboardButton("🥈 Silver", callback_data=f"rank_{service}_silver")
+        btn_bronze = types.InlineKeyboardButton("🥉 Bronze", callback_data=f"rank_{service}_bronze")
+        markup.add(btn_all, btn_gold, btn_silver, btn_bronze)
+
+        bot.edit_message_text(
+            f"নির্বাচিত সার্ভিস: **{service.upper()}**\n\n২. এবার কোয়ালিটি (Rank) সিলেক্ট করুন:",
+            chat_id,
+            call.message.message_id,
+            parse_mode="Markdown",
+            reply_markup=markup
+        )
+
+    # ধাপ ৩: কোয়ালিটি সিলেক্ট করলে ওই কোয়ালিটির আসল দেশগুলির তালিকা আসা (ভিডিওর ধাপ ৩)
+    elif call.data.startswith("rank_"):
+        parts = call.data.split("_")
+        service = parts[1]
+        rank = parts[2]
+        
+        bot.answer_callback_query(call.id, f"{rank.upper()} কোয়ালিটির দেশ ও দাম সাইট থেকে লোড হচ্ছে...")
         
         try:
             if not GLOBAL_COUNTRIES:
                 GLOBAL_COUNTRIES = get_dynamic_country_names()
 
-            res = requests.get(SMS_BOWER_API, params={
+            params = {
                 "api_key": API_KEY,
                 "action": "getPrices",
                 "service": service
-            })
-            
+            }
+            if rank != "all":
+                params["rank"] = rank
+
+            res = requests.get(SMS_BOWER_API, params=params)
             data = res.json()
             markup = types.InlineKeyboardMarkup(row_width=1)
             count = 0
             
             for country_id, services in data.items():
                 if service in services:
+                    price = services[service].get("cost") or services[service].get("price") or "N/A"
                     qty = services[service].get("count") or 0
                     
                     if int(qty) > 0:
                         c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-                        btn_text = f"🌐 {c_name} ({qty} টি নাম্বার খালি)"
-                        btn = types.InlineKeyboardButton(btn_text, callback_data=f"selectcountry_{service}_{country_id}")
+                        btn_text = f"🌐 {c_name} — ${price} ({qty} টি স্টকে)"
+                        btn = types.InlineKeyboardButton(btn_text, callback_data=f"buy_{service}_{country_id}_{rank}")
                         markup.add(btn)
                         count += 1
-                        if count >= 20:
+                        if count >= 20: # টপ ২০টি এভেলেবল দেশ
                             break
             
             if count == 0:
-                bot.send_message(chat_id, "❌ এই মুহূর্তে কোনো নাম্বার স্টকে নেই।")
+                bot.send_message(chat_id, f"❌ {rank.upper()} কোয়ালিটিতে এই মুহূর্তে কোনো নাম্বার স্টকে নেই। অন্য কোয়ালিটি ট্রাই করুন।")
             else:
                 bot.edit_message_text(
-                    f"সার্ভিস: **{service.upper()}**\n\nদেশ বেছে নিন:", 
+                    f"সার্ভিস: **{service.upper()}** | কোয়ালিটি: **{rank.upper()}**\n\n৩. ওই কোয়ালিটির স্টকে থাকা দেশ বেছে নিন (যেমন Yemen, Indonesia ইত্যাদি):", 
                     chat_id, 
                     call.message.message_id, 
                     parse_mode="Markdown", 
@@ -168,36 +188,15 @@ def callback_inline(call):
         except Exception as e:
             bot.send_message(chat_id, "❌ ডাটা লোড করতে সমস্যা হয়েছে।")
 
-    # ২য় ধাপ: বাজেট/প্রাইস টাইপ সিলেক্ট
-    elif call.data.startswith("selectcountry_"):
-        parts = call.data.split("_")
-        service = parts[1]
-        country_id = parts[2]
-        c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        btn_cheap = types.InlineKeyboardButton("⚡ সবচেয়ে কমদামি নাম্বার ($0.046 - $0.08)", callback_data=f"buy_{service}_{country_id}_0.08")
-        btn_med = types.InlineKeyboardButton("🟢 মাঝারি বাজেটের নাম্বার ($0.09 - $0.15)", callback_data=f"buy_{service}_{country_id}_0.15")
-        btn_all = types.InlineKeyboardButton("🌟 যেকোনো প্রোভাইডার/ডিফল্ট রেট", callback_data=f"buy_{service}_{country_id}_none")
-        
-        markup.add(btn_cheap, btn_med, btn_all)
-
-        bot.edit_message_text(
-            f"দেশ: **{c_name}**\nসার্ভিস: **{service.upper()}**\n\nআপনি কোন বাজেটের নাম্বার কিনতে চান?",
-            chat_id,
-            call.message.message_id,
-            parse_mode="Markdown",
-            reply_markup=markup
-        )
-
-    # ৩য় ধাপ: maxPrice ফিল্টার দিয়ে সস্তা নাম্বার কেনা
+    # ধাপ ৪: কাঙ্ক্ষিত দেশের ওপর ক্লিক করে রিয়েল-টাইমে নাম্বার কেনা (ভিডিওর ধাপ ৪)
     elif call.data.startswith("buy_"):
         parts = call.data.split("_")
         service = parts[1]
         country_id = parts[2]
-        max_price_val = parts[3]
+        rank = parts[3]
         
-        bot.answer_callback_query(call.id, "নাম্বার কেনা হচ্ছে...")
+        c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
+        bot.answer_callback_query(call.id, f"{c_name} এর নাম্বার কেনা হচ্ছে...")
         
         try:
             params = {
@@ -207,9 +206,8 @@ def callback_inline(call):
                 "country": country_id
             }
             
-            # maxPrice ফিল্টার পাস করা যাতে ০.০৪৬/০.০৫৪ এর সস্তা প্রোভাইডার থেকে নাম্বার আসে
-            if max_price_val != "none":
-                params["maxPrice"] = max_price_val
+            if rank != "all":
+                params["rank"] = rank
 
             res = requests.get(SMS_BOWER_API, params=params)
             
@@ -219,10 +217,13 @@ def callback_inline(call):
                 number = res_parts[2]
                 
                 msg = (
-                    f"✅ **নাম্বার কেনা সফল হয়েছে!**\n\n"
-                    f"📱 **নাম্বার:** `{number}`\n"
+                    f"🎉 **Done. You've gotten a number!**\n\n"
+                    f"📱 **সার্ভিস:** `{service.upper()}`\n"
+                    f"🏆 **কোয়ালিটি:** `{rank.upper()}`\n"
+                    f"🌐 **দেশ:** `{c_name}`\n"
+                    f"📞 **নাম্বার:** `{number}`\n"
                     f"🆔 **অর্ডার আইডি:** `{act_id}`\n\n"
-                    f"কোড পাঠাতে এই নাম্বারটি ব্যবহার করুন।"
+                    f"অ্যাপে নাম্বারটি বসিয়ে কোড পাঠান, তারপর নিচে চেক চাপুন।"
                 )
                 
                 markup = types.InlineKeyboardMarkup()
@@ -232,10 +233,11 @@ def callback_inline(call):
                 
                 bot.send_message(chat_id, msg, parse_mode="Markdown", reply_markup=markup)
             else:
-                bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি (কমদামে স্টক না থাকলে বাজেট বাড়িয়ে ট্রাই করুন): {res.text}")
+                bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি: {res.text}")
         except Exception as e:
             bot.send_message(chat_id, "❌ এরর হয়েছে।")
 
+    # OTP কোড চেক করা
     elif call.data.startswith("check_"):
         act_id = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "SMS চেক করা হচ্ছে...")
@@ -257,6 +259,7 @@ def callback_inline(call):
         except Exception as e:
             bot.send_message(chat_id, "❌ এরর হয়েছে।")
 
+    # অর্ডার ক্যানসেল
     elif call.data.startswith("cancel_"):
         act_id = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "ক্যানসেল করা হচ্ছে...")
