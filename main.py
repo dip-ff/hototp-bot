@@ -20,17 +20,16 @@ Thread(target=run_flask).start()
 # -----------------------------
 
 # ----------------- কনফিগারেশন -----------------
-BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q" # @BotFather থেকে পাওয়া বটের টোকেন
-API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"
+BOT_TOKEN = "8810955739:AAFM2xIwPK3PL_PnYu8Ic5VSljdQ3gA1I0Q"  # আপনার নতুন টোকেন
+API_KEY = "Ztru33vtO2GyFwduMfXuKRTGFvnnx7Os"                 # আপনার সাইট API
 SMS_BOWER_API = "https://smsbower.page/stubs/handler_api.php"
 
-# আপনার নিজস্ব টেলিগ্রাম ইউজার আইডি
-ALLOWED_USER_ID = 7418898985 
+ALLOWED_USER_ID = 7418898985  # আপনার নিজস্ব টেলিগ্রাম ইউজার আইডি
 # -----------------------------------------------
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# সাইট থেকে ডায়নামিক্যালি সব দেশের আসল নাম ডাউনলোড করার ফাংশন
+# সাইট থেকে সব দেশের আসল নাম ডাউনলোড করার ফাংশন
 def get_dynamic_country_names():
     try:
         res = requests.get(SMS_BOWER_API, params={"api_key": API_KEY, "action": "getCountries"})
@@ -53,10 +52,9 @@ def get_dynamic_country_names():
     except Exception as e:
         return {}
 
-# গ্লোবালি সব দেশের নাম ক্যাশে রাখা
 GLOBAL_COUNTRIES = get_dynamic_country_names()
 
-# সিকিউরিটি ফিল্টার (অন্য কেউ বট চালাতে পারবে না)
+# সিকিউরিটি ফিল্টার (আপনি ছাড়া অন্য কেউ চালাতে পারবে না)
 def is_authorized(chat_id):
     return str(chat_id) == str(ALLOWED_USER_ID)
 
@@ -125,12 +123,12 @@ def callback_inline(call):
 
     chat_id = call.message.chat.id
     
+    # ১ম ধাপ: সার্ভিস পছন্দ
     if call.data.startswith("service_"):
         service = call.data.split("_")[1]
         bot.answer_callback_query(call.id, "সাইট থেকে ডায়নামিক তথ্য আনা হচ্ছে...")
         
         try:
-            # ক্যানট্রি লিস্ট খালি থাকলে নতুন করে লোড করবে
             if not GLOBAL_COUNTRIES:
                 GLOBAL_COUNTRIES = get_dynamic_country_names()
 
@@ -146,24 +144,22 @@ def callback_inline(call):
             
             for country_id, services in data.items():
                 if service in services:
-                    price = services[service].get("cost") or services[service].get("price") or "N/A"
                     qty = services[service].get("count") or 0
                     
                     if int(qty) > 0:
-                        # সম্পূর্ণ সাইটের ডাটাবেজ থেকে আসা দেশের আসল নাম
                         c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
-                        btn_text = f"🌐 {c_name} — ${price} ({qty} টি খালি আছে)"
-                        btn = types.InlineKeyboardButton(btn_text, callback_data=f"buy_{service}_{country_id}")
+                        btn_text = f"🌐 {c_name} ({qty} টি নাম্বার খালি)"
+                        btn = types.InlineKeyboardButton(btn_text, callback_data=f"selectcountry_{service}_{country_id}")
                         markup.add(btn)
                         count += 1
-                        if count >= 20: # টপ ২০টি খালি থাকা দেশ দেখাবে
+                        if count >= 20:
                             break
             
             if count == 0:
                 bot.send_message(chat_id, "❌ এই মুহূর্তে কোনো নাম্বার স্টকে নেই।")
             else:
                 bot.edit_message_text(
-                    f"সার্ভিস: **{service.upper()}**\n\nসাইটে স্টকে থাকা সকল দেশের আসল তালিকা:", 
+                    f"সার্ভিস: **{service.upper()}**\n\nদেশ বেছে নিন:", 
                     chat_id, 
                     call.message.message_id, 
                     parse_mode="Markdown", 
@@ -172,20 +168,50 @@ def callback_inline(call):
         except Exception as e:
             bot.send_message(chat_id, "❌ ডাটা লোড করতে সমস্যা হয়েছে।")
 
+    # ২য় ধাপ: বাজেট/প্রাইস টাইপ সিলেক্ট
+    elif call.data.startswith("selectcountry_"):
+        parts = call.data.split("_")
+        service = parts[1]
+        country_id = parts[2]
+        c_name = GLOBAL_COUNTRIES.get(str(country_id), f"Country #{country_id}")
+
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        btn_cheap = types.InlineKeyboardButton("⚡ সবচেয়ে কমদামি নাম্বার ($0.046 - $0.08)", callback_data=f"buy_{service}_{country_id}_0.08")
+        btn_med = types.InlineKeyboardButton("🟢 মাঝারি বাজেটের নাম্বার ($0.09 - $0.15)", callback_data=f"buy_{service}_{country_id}_0.15")
+        btn_all = types.InlineKeyboardButton("🌟 যেকোনো প্রোভাইডার/ডিফল্ট রেট", callback_data=f"buy_{service}_{country_id}_none")
+        
+        markup.add(btn_cheap, btn_med, btn_all)
+
+        bot.edit_message_text(
+            f"দেশ: **{c_name}**\nসার্ভিস: **{service.upper()}**\n\nআপনি কোন বাজেটের নাম্বার কিনতে চান?",
+            chat_id,
+            call.message.message_id,
+            parse_mode="Markdown",
+            reply_markup=markup
+        )
+
+    # ৩য় ধাপ: maxPrice ফিল্টার দিয়ে সস্তা নাম্বার কেনা
     elif call.data.startswith("buy_"):
         parts = call.data.split("_")
         service = parts[1]
         country_id = parts[2]
+        max_price_val = parts[3]
         
         bot.answer_callback_query(call.id, "নাম্বার কেনা হচ্ছে...")
         
         try:
-            res = requests.get(SMS_BOWER_API, params={
+            params = {
                 "api_key": API_KEY,
                 "action": "getNumber",
                 "service": service,
                 "country": country_id
-            })
+            }
+            
+            # maxPrice ফিল্টার পাস করা যাতে ০.০৪৬/০.০৫৪ এর সস্তা প্রোভাইডার থেকে নাম্বার আসে
+            if max_price_val != "none":
+                params["maxPrice"] = max_price_val
+
+            res = requests.get(SMS_BOWER_API, params=params)
             
             if "ACCESS_NUMBER" in res.text:
                 res_parts = res.text.split(":")
@@ -206,7 +232,7 @@ def callback_inline(call):
                 
                 bot.send_message(chat_id, msg, parse_mode="Markdown", reply_markup=markup)
             else:
-                bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি: {res.text}")
+                bot.send_message(chat_id, f"❌ নাম্বার পাওয়া যায়নি (কমদামে স্টক না থাকলে বাজেট বাড়িয়ে ট্রাই করুন): {res.text}")
         except Exception as e:
             bot.send_message(chat_id, "❌ এরর হয়েছে।")
 
